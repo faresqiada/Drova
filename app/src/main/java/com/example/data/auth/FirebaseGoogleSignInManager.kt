@@ -11,7 +11,6 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
@@ -71,14 +70,6 @@ class FirebaseGoogleSignInManager(
                     cause = error
                 )
             )
-        } catch (error: FirebaseNetworkException) {
-            Result.failure(
-                GoogleSignInException(
-                    messageAr = "تعذر الاتصال بخدمة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
-                    messageEn = "Could not reach Firebase. Check your internet connection and try again.",
-                    cause = error
-                )
-            )
         } catch (error: FirebaseAuthInvalidCredentialsException) {
             Result.failure(
                 GoogleSignInException(
@@ -88,13 +79,23 @@ class FirebaseGoogleSignInManager(
                 )
             )
         } catch (error: FirebaseAuthException) {
-            Result.failure(
-                GoogleSignInException(
-                    messageAr = "فشل تسجيل الدخول عبر Firebase. حاول مرة أخرى.",
-                    messageEn = "Firebase authentication failed. Please try again.",
-                    cause = error
+            if (error.errorCode == FirebaseAuth.ERROR_NETWORK_REQUEST_FAILED) {
+                Result.failure(
+                    GoogleSignInException(
+                        messageAr = "تعذر الاتصال بخدمة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
+                        messageEn = "Could not reach Firebase. Check your internet connection and try again.",
+                        cause = error
+                    )
                 )
-            )
+            } else {
+                Result.failure(
+                    GoogleSignInException(
+                        messageAr = "فشل تسجيل الدخول عبر Firebase. حاول مرة أخرى.",
+                        messageEn = "Firebase authentication failed. Please try again.",
+                        cause = error
+                    )
+                )
+            }
         } catch (error: GetCredentialException) {
             Result.failure(
                 GoogleSignInException(
