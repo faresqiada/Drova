@@ -24,22 +24,61 @@ jobs:
         run: |
           echo "=== ROOT ==="
           ls -la
+
           echo "=== APP ==="
           ls -la app
+
           echo "=== GRADLE FILES ==="
-          find . -maxdepth 3 -type f \( -name "build.gradle.kts" -o -name "settings.gradle.kts" -o -name "gradle-wrapper.properties" \) -print
+          find . -maxdepth 4 -type f \( \
+            -name "build.gradle.kts" \
+            -o -name "settings.gradle.kts" \
+            -o -name "gradle-wrapper.properties" \
+          \) -print
 
       - name: Generate Gradle Wrapper
-        run: gradle wrapper
+        run: |
+          gradle wrapper --gradle-version 9.7
 
       - name: Make Gradle executable
-        run: chmod +x ./gradlew
+        run: |
+          chmod +x ./gradlew
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          echo "=== DEBUG KEYSTORE ==="
+          ls -lh debug.keystore
+
+      - name: Verify Gradle project
+        run: |
+          ./gradlew projects --no-daemon
 
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
+        run: |
+          ./gradlew :app:assembleDebug \
+            --stacktrace \
+            --no-daemon \
+            --no-configuration-cache \
+            -x processDebugGoogleServices
+
+      - name: Show generated APK
+        run: |
+          echo "=== APK OUTPUT ==="
+          find app/build/outputs/apk -type f -name "*.apk" -print -exec ls -lh {} \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DROVA-debug
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
