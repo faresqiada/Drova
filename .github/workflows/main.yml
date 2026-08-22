@@ -3,21 +3,88 @@ name: Build DROVA APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build debug APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-   <Generate></Generate>
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 9.3.1 --distribution-type bin
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Create temporary google-services.json
+        run: |
+          mkdir -p app
+          printf '%s\n' \
+            '{' \
+            '  "project_info": {' \
+            '    "project_number": "123456789012",' \
+            '    "project_id": "drova-ci",' \
+            '    "storage_bucket": "drova-ci.appspot.com"' \
+            '  },' \
+            '  "client": [{' \
+            '    "client_info": {' \
+            '      "mobilesdk_app_id": "1:123456789012:android:0000000000000000",' \
+            '      "android_client_info": {' \
+            '        "package_name": "com.aistudio.drova.app"' \
+            '      }' \
+            '    },' \
+            '    "api_key": [{' \
+            '      "current_key": "AIzaSyCIOnlyPlaceholderKey000000000000000"' \
+            '    }],' \
+            '    "services": {}' \
+            '  }],' \
+            '  "configuration_version": "1"' \
+            '}' > app/google-services.json
+
+      - name: Build APK
+        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon --no-configuration-cache
+
+      - name: Check APK
+        run: test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DROVA-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
