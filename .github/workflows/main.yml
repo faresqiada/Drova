@@ -17,8 +17,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Show project files
+        run: |
+          echo "=== ROOT ==="
+          ls -la
+          echo "=== APP ==="
+          ls -la app
+          echo "=== GRADLE FILES ==="
+          find . -maxdepth 3 -type f \( -name "build.gradle.kts" -o -name "settings.gradle.kts" -o -name "gradle-wrapper.properties" \) -print
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper
 
       - name: Make Gradle executable
         run: chmod +x ./gradlew
