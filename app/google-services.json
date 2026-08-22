@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "398721151904",
+    "project_id": "drova-92fc8",
+    "storage_bucket": "drova-92fc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:398721151904:android:0bd24f95f81724e7a56ac5",
+        "android_client_info": {
+          "package_name": "com.aistudio.drova.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsHX9rmQwY2vFS1V5hvs5mqItcRxEM-mg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
