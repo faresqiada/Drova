@@ -38,44 +38,19 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Generate debug keystore
+      - name: Restore fixed debug keystore
+        env:
+          DROVA_DEBUG_KEYSTORE_BASE64: ${{ secrets.DROVA_DEBUG_KEYSTORE_BASE64 }}
         run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-
-      - name: Create temporary google-services.json
-        run: |
-          mkdir -p app
-          printf '%s\n' \
-            '{' \
-            '  "project_info": {' \
-            '    "project_number": "123456789012",' \
-            '    "project_id": "drova-ci",' \
-            '    "storage_bucket": "drova-ci.appspot.com"' \
-            '  },' \
-            '  "client": [{' \
-            '    "client_info": {' \
-            '      "mobilesdk_app_id": "1:123456789012:android:0000000000000000",' \
-            '      "android_client_info": {' \
-            '        "package_name": "com.aistudio.drova.app"' \
-            '      }' \
-            '    },' \
-            '    "api_key": [{' \
-            '      "current_key": "AIzaSyCIOnlyPlaceholderKey000000000000000"' \
-            '    }],' \
-            '    "services": {}' \
-            '  }],' \
-            '  "configuration_version": "1"' \
-            '}' > app/google-services.json
+          test -n "$DROVA_DEBUG_KEYSTORE_BASE64"
+          printf '%s' "$DROVA_DEBUG_KEYSTORE_BASE64" | base64 --decode > debug.keystore
+          chmod 600 debug.keystore
 
       - name: Build APK
+        env:
+          DROVA_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/debug.keystore
+          DROVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DROVA_DEBUG_KEYSTORE_PASSWORD }}
+          DROVA_DEBUG_KEY_PASSWORD: ${{ secrets.DROVA_DEBUG_KEY_PASSWORD }}
         run: ./gradlew :app:assembleDebug --stacktrace --no-daemon --no-configuration-cache
 
       - name: Check APK

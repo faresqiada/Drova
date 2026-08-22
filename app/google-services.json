@@ -12,7 +12,20 @@
           "package_name": "com.aistudio.drova.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "398721151904-4mbhigrnln48id9unhejmhaapune1oen.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.drova.app",
+            "certificate_hash": "265ef8ea9501d450178c4a066356f4427d23daf6"
+          }
+        },
+        {
+          "client_id": "398721151904-trlhdv08fj103g9ul5m89me1e2896tc5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAsHX9rmQwY2vFS1V5hvs5mqItcRxEM-mg"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "398721151904-trlhdv08fj103g9ul5m89me1e2896tc5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

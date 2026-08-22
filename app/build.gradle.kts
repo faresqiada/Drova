@@ -32,10 +32,11 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
+      val debugKeystorePath = System.getenv("DROVA_DEBUG_KEYSTORE_PATH") ?: "${rootDir}/debug.keystore"
+      storeFile = file(debugKeystorePath)
+      storePassword = System.getenv("DROVA_DEBUG_KEYSTORE_PASSWORD") ?: "android"
       keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      keyPassword = System.getenv("DROVA_DEBUG_KEY_PASSWORD") ?: "android"
     }
   }
 
@@ -104,12 +105,11 @@ dependencies {
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
-  // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
-  // Sign-In via Credential Manager:
-  // implementation(libs.firebase.auth)
-  // implementation(libs.androidx.credentials)
-  // implementation(libs.androidx.credentials.play.services)
-  // implementation(libs.googleid)
+  implementation(libs.firebase.auth)
+  implementation(libs.androidx.credentials)
+  implementation(libs.androidx.credentials.play.services)
+  implementation(libs.googleid)
+  implementation(libs.kotlinx.coroutines.play.services)
   implementation(libs.firebase.appcheck.recaptcha)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)

@@ -1,5 +1,7 @@
 package com.example.presentation.auth
 
+import android.app.Activity
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -11,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -20,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +48,7 @@ fun LoginScreen(
     val uiState by authViewModel.uiState.collectAsState()
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
     val focusManager = LocalFocusManager.current
+    val activity = LocalContext.current as? Activity
 
     var phoneOrEmail by remember { mutableStateOf("01012345678") }
     var password by remember { mutableStateOf("123456") }
@@ -246,6 +251,16 @@ fun LoginScreen(
                     enabled = isFormValid,
                     trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
                     testTag = "login_submit_btn"
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                DrovaOutlinedButton(
+                    text = if (isAr) "المتابعة باستخدام Google" else "Continue with Google",
+                    onClick = {
+                        activity?.let { authViewModel.signInWithGoogle(it) }
+                    },
+                    enabled = activity != null && uiState !is AuthUiState.Loading,
+                    leadingIcon = Icons.Default.AccountCircle,
+                    testTag = "login_google_btn"
                 )
             }
 

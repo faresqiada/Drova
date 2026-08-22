@@ -1,6 +1,9 @@
 package com.example.data.repository
 
+import android.app.Activity
 import com.example.core.result.DrovaResult
+import com.example.data.auth.FirebaseGoogleSignInManager
+import com.example.data.auth.GoogleSignInException
 import com.example.data.local.source.SessionManager
 import com.example.data.remote.dto.*
 import com.example.data.remote.source.AuthRemoteDataSource
@@ -11,14 +14,17 @@ import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.AuthResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.tasks.await
 
 class AuthRepositoryImpl(
     private val sessionManager: SessionManager = SessionManager(),
-    private val remoteDataSource: AuthRemoteDataSource? = null
+    private val remoteDataSource: AuthRemoteDataSource? = null,
+    private val googleSignInManager: FirebaseGoogleSignInManager = FirebaseGoogleSignInManager()
 ) : AuthRepository {
 
     override val selectedRole: StateFlow<UserRole> = sessionManager.selectedRole
     override val currentUser: StateFlow<User?> = sessionManager.currentUser
+    override val firebaseUid: StateFlow<String?> = sessionManager.firebaseUid
 
     override fun setSelectedRole(role: UserRole) {
         sessionManager.setSelectedRole(role)
@@ -62,6 +68,46 @@ class AuthRepositoryImpl(
         }
         sessionManager.setCurrentUser(user)
         sessionManager.setAuthToken("token_demo_${role.name.lowercase()}")
+    }
+
+    override suspend fun signInWithGoogle(activity: Activity): AuthResult {
+        val result = googleSignInManager.signIn(activity)
+        val firebaseUser = result.getOrElse { error ->
+            val signInError = error as? GoogleSignInException
+            return AuthResult.Error(
+                messageAr = signInError?.messageAr ?: "فشل تسجيل الدخول عبر Google. حاول مرة أخرى.",
+                messageEn = signInError?.messageEn ?: "Google Sign-In failed. Please try again."
+            )
+        }
+
+        return try {
+            val idToken = firebaseUser.getIdToken(false).await()?.token
+                ?: return AuthResult.Error(
+                    messageAr = "تعذر الحصول على جلسة Firebase صالحة.",
+                    messageEn = "Could not obtain a valid Firebase session."
+                )
+            val role = selectedRole.value
+            val user = User(
+                id = firebaseUser.uid,
+                fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() }
+                    ?: firebaseUser.email?.substringBefore("@")?.ifBlank { null }
+                    ?: "DROVA User",
+                phone = firebaseUser.phoneNumber.orEmpty(),
+                email = firebaseUser.email.orEmpty(),
+                role = role,
+                city = "القاهرة",
+                district = "المعادي"
+            )
+            sessionManager.setFirebaseUid(firebaseUser.uid)
+            sessionManager.setAuthToken(idToken)
+            sessionManager.setCurrentUser(user)
+            AuthResult.Success(user)
+        } catch (error: Exception) {
+            AuthResult.Error(
+                messageAr = "تعذر إكمال جلسة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
+                messageEn = "Could not complete the Firebase session. Check your internet connection and try again."
+            )
+        }
     }
 
     override suspend fun login(phoneOrEmail: String, pinOrPassword: String): AuthResult {
@@ -282,6 +328,7 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun logout() {
+        googleSignInManager.signOut()
         remoteDataSource?.let {
             try { it.logout() } catch (e: Exception) {}
         }

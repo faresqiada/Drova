@@ -1,5 +1,7 @@
 package com.example.presentation.auth
 
+import android.app.Activity
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.di.ServiceLocator
@@ -26,6 +28,7 @@ class AuthViewModel(
 
     val selectedRole: StateFlow<UserRole> = authRepository.selectedRole
     val currentUser: StateFlow<User?> = authRepository.currentUser
+    val firebaseUid: StateFlow<String?> = authRepository.firebaseUid
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -37,6 +40,16 @@ class AuthViewModel(
 
     fun quickSwitchRole(role: UserRole) {
         authRepository.quickSwitchRole(role)
+    }
+
+    fun signInWithGoogle(activity: Activity) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            when (val result = authRepository.signInWithGoogle(activity)) {
+                is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
+            }
+        }
     }
 
     fun login(phoneOrEmail: String, pinOrPassword: String) {

@@ -14,6 +14,9 @@ class SessionManager {
     private val _authToken = MutableStateFlow<String?>(null)
     val authToken: StateFlow<String?> = _authToken.asStateFlow()
 
+    private val _firebaseUid = MutableStateFlow<String?>(null)
+    val firebaseUid: StateFlow<String?> = _firebaseUid.asStateFlow()
+
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
@@ -22,6 +25,10 @@ class SessionManager {
 
     fun setAuthToken(token: String?) {
         _authToken.value = token
+    }
+
+    fun setFirebaseUid(uid: String?) {
+        _firebaseUid.value = uid
     }
 
     fun setCurrentUser(user: User?) {
@@ -34,6 +41,7 @@ class SessionManager {
 
     fun clearSession() {
         _authToken.value = null
+        _firebaseUid.value = null
         _currentUser.value = null
     }
 
