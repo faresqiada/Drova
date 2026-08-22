@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">DROVA</string>
+    <string name="tagline">منظومة التوصيل الذكية</string>
+    <string name="tagline_en">Smart Delivery Ecosystem</string>
+    <string name="welcome_headline">المنصة المتكاملة لتوصيل الطعام</string>
+    <string name="welcome_subheadline">نربط بين العملاء والمطاعم والكباتن بتجربة ذكية وسريعة</string>
+    <string name="role_customer">عميل</string>
+    <string name="role_restaurant">مطعم</string>
+    <string name="role_captain">كابتن</string>
+</resources>

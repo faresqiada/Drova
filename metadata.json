@@ -1,0 +1,6 @@
+{
+  "name": "DROVA",
+  "description": "Commercial food delivery platform connecting customers, restaurants, and captains in Egypt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
