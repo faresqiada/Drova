@@ -18,6 +18,10 @@ android {
   namespace = "com.example"
   compileSdk = 37
 
+  buildFeatures {
+    resValues = true
+  }
+
   defaultConfig {
     applicationId = "com.aistudio.drova.app"
     minSdk = 24
