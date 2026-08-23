@@ -402,6 +402,7 @@ fun DrovaRoleBadge(
         UserRole.CUSTOMER -> Triple(DrovaTurquoiseLight, DrovaTurquoiseHover, DrovaTurquoise.copy(alpha = 0.4f))
         UserRole.RESTAURANT -> Triple(DrovaCharcoal, Color.White, DrovaCharcoal)
         UserRole.CAPTAIN -> Triple(Color(0xFFFEF3C7), DrovaWarningText, DrovaWarning.copy(alpha = 0.5f))
+        UserRole.ADMIN -> Triple(DrovaSurface, DrovaCharcoal, DrovaBorder)
     }
 
     Surface(

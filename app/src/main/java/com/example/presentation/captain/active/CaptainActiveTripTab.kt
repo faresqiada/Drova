@@ -686,7 +686,7 @@ fun CaptainActiveTripTab(
                 item {
                     val statusText = when (val state = pickupProofState) {
                         com.example.presentation.captain.PickupProofUiState.Validating -> "جاري فحص الصورة ورفع الإثبات..."
-                        com.example.presentation.captain.PickupProofUiState.Failure -> state.messageAr
+                        is com.example.presentation.captain.PickupProofUiState.Failure -> state.messageAr
                         com.example.presentation.captain.PickupProofUiState.Success -> "تم تأكيد استلام الطلب"
                         com.example.presentation.captain.PickupProofUiState.Idle -> ""
                     }

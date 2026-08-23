@@ -96,6 +96,9 @@ fun RegisterScreen(
                 formError = null
                 authViewModel.registerCaptain(fullName, phone, nationalId, vehicleType, captainMode)
             }
+            UserRole.ADMIN -> {
+                formError = if (isAr) "يتم إنشاء حسابات المديرين من خلال لوحة الإدارة فقط" else "Admin accounts are created through the admin control layer only"
+            }
         }
     }
 
@@ -437,6 +440,17 @@ fun RegisterScreen(
                                 }
                             }
                         }
+                    }
+
+                    UserRole.ADMIN -> {
+                        Text(
+                            text = if (isAr) "حسابات المديرين تُدار من خلال لوحة الإدارة فقط" else "Admin accounts are managed through the admin control layer only",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = DrovaTextSecondary,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 

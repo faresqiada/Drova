@@ -46,7 +46,7 @@ data class AdminRecord(
         is String -> value.toDoubleOrNull()
         else -> null
     }
-    fun nested(path: String): Any? = path.split('.').fold<Any?>(fields) { current, part ->
+    fun nested(path: String): Any? = path.split('.').fold<String, Any?>(fields) { current, part ->
         (current as? Map<*, *>)?.get(part)
     }
 }
