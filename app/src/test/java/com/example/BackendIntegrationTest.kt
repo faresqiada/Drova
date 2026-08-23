@@ -1,5 +1,6 @@
 package com.example
 
+import androidx.test.core.app.ApplicationProvider
 import com.example.core.di.ServiceLocator
 import com.example.core.network.safeApiCall
 import com.example.core.result.DrovaError
@@ -14,13 +15,24 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import retrofit2.HttpException
 import retrofit2.Response
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class BackendIntegrationTest {
+
+    @Before
+    fun setUpServiceLocator() {
+        ServiceLocator.initialize(ApplicationProvider.getApplicationContext())
+    }
 
     private val moshi: Moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
