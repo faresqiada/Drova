@@ -53,7 +53,7 @@ jobs:
           DROVA_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/debug.keystore
           DROVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DROVA_DEBUG_KEYSTORE_PASSWORD }}
           DROVA_DEBUG_KEY_PASSWORD: ${{ secrets.DROVA_DEBUG_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon --no-configuration-cache
+        run: ./gradlew :app:testDebugUnitTest :app:compileDebugKotlin :app:assembleDebug --stacktrace --no-daemon --no-configuration-cache
 
       - name: Check APK
         run: test -f app/build/outputs/apk/debug/app-debug.apk
