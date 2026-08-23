@@ -9,6 +9,11 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+val hasMapsApiKey = rootProject.file(".env").takeIf { it.isFile }?.readLines()?.any { line ->
+  val value = line.substringAfter('=', "").trim()
+  line.trimStart().startsWith("MAPS_API_KEY=") && value.isNotEmpty()
+} == true
+
 android {
   namespace = "com.example"
   compileSdk = 37
@@ -17,6 +22,9 @@ android {
     applicationId = "com.aistudio.drova.app"
     minSdk = 24
     targetSdk = 36
+    if (!hasMapsApiKey) {
+      resValue("string", "maps_api_key", "")
+    }
     versionCode = 1
     versionName = "1.0"
 
