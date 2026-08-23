@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.core.designsystem.*
 import com.example.domain.model.CaptainTransaction
 import com.example.domain.model.CaptainTransactionType
@@ -36,8 +37,8 @@ fun CaptainWalletTab(
     val earnings by captainViewModel.earnings.collectAsState()
     val transactions by captainViewModel.transactions.collectAsState()
     var showPayoutSheet by remember { mutableStateOf(false) }
-    var payoutAmountInput by remember { mutableStateOf("500") }
-    var selectedPayoutMethod by remember { mutableStateOf("فودافون كاش (01012345678)") }
+    var payoutAmountInput by remember { mutableStateOf(if (BuildConfig.DEBUG) "500" else "") }
+    var selectedPayoutMethod by remember { mutableStateOf(if (BuildConfig.DEBUG) "فودافون كاش (01012345678)" else "") }
 
     LazyColumn(
         modifier = modifier

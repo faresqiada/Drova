@@ -1,6 +1,9 @@
 package com.example.domain.repository
 
 import com.example.core.result.DrovaResult
+import com.example.domain.model.PickupProof
+import com.example.domain.model.PickupProofConfirmation
+import java.io.File
 import com.example.domain.model.Order
 import com.example.domain.model.OrderStatus
 import com.example.domain.model.OrderTimelineEvent
@@ -38,6 +41,8 @@ interface OrderRepository {
     suspend fun fetchRestaurantOrders(restaurantId: String): DrovaResult<List<Order>>
     suspend fun fetchCaptainOrders(captainId: String): DrovaResult<List<Order>>
     suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus): DrovaResult<Boolean>
+    suspend fun confirmPickupWithProof(orderId: String, captainId: String, imageFile: File): PickupProofConfirmation
+    suspend fun applyValidatedPickupProof(orderId: String, captainId: String, proof: PickupProof): DrovaResult<Boolean>
     suspend fun assignCaptain(
         orderId: String,
         captainId: String,

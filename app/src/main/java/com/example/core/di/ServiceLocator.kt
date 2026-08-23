@@ -1,9 +1,12 @@
 package com.example.core.di
 
+import android.content.Context
+import com.example.BuildConfig
 import com.example.core.network.ApiClient
 import com.example.data.local.source.*
 import com.example.data.remote.api.*
 import com.example.data.remote.source.*
+import com.example.data.pickupproof.FirebasePickupProofService
 import com.example.data.repository.*
 import com.example.domain.repository.*
 
@@ -12,6 +15,16 @@ import com.example.domain.repository.*
  * Data Sources, Local Persistence, and Retrofit Networking services.
  */
 object ServiceLocator {
+
+    private var applicationContext: Context? = null
+
+    fun initialize(context: Context) {
+        applicationContext = context.applicationContext
+    }
+
+    private fun requireApplicationContext(): Context = checkNotNull(applicationContext) {
+        "ServiceLocator.initialize(context) must be called from Application/Activity before Firebase proof services are used."
+    }
 
     // ==========================================
     // Session & Network Infrastructure
@@ -60,10 +73,19 @@ object ServiceLocator {
         )
     }
 
+    val pickupProofService: FirebasePickupProofService by lazy {
+        FirebasePickupProofService(requireApplicationContext())
+    }
+
+    val adminRepository: AdminRepository by lazy {
+        AdminRepositoryImpl()
+    }
+
     val orderRepository: OrderRepository by lazy {
         OrderRepositoryImpl(
             localDataSource = orderLocalDataSource,
-            remoteDataSource = orderRemoteDataSource
+            remoteDataSource = orderRemoteDataSource,
+            pickupProofService = pickupProofService
         )
     }
 
@@ -80,7 +102,12 @@ object ServiceLocator {
 
     val captainRepository: CaptainRepository by lazy {
         CaptainRepositoryImpl(
-            orderRepository = orderRepository
+            orderRepository = orderRepository,
+            captainIdProvider = {
+                sessionManager.firebaseUid.value
+                    ?: sessionManager.currentUser.value?.id
+                    ?: if (BuildConfig.DEBUG) "cap_1" else ""
+            }
         )
     }
 

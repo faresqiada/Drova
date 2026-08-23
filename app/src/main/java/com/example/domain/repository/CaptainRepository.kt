@@ -1,6 +1,7 @@
 package com.example.domain.repository
 
 import com.example.domain.model.*
+import java.io.File
 import kotlinx.coroutines.flow.StateFlow
 
 interface CaptainRepository {
@@ -18,6 +19,7 @@ interface CaptainRepository {
     suspend fun setCaptainMode(mode: CaptainMode): Boolean
     suspend fun acceptTask(orderId: String): Boolean
     suspend fun updateTaskStatus(orderId: String, newStatus: OrderStatus): Boolean
+    suspend fun confirmPickup(orderId: String, imageFile: File): PickupProofConfirmation
     suspend fun rejectTask(orderId: String)
     suspend fun requestPayout(amountEgp: Double): Boolean
     suspend fun markNotificationAsRead(id: String)

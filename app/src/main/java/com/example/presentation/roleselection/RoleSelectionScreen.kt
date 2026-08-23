@@ -36,7 +36,9 @@ fun RoleSelectionScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedRole by remember(currentSelectedRole) { mutableStateOf(currentSelectedRole) }
+    var selectedRole by remember(currentSelectedRole) {
+        mutableStateOf(currentSelectedRole.takeUnless { it == UserRole.ADMIN } ?: UserRole.CUSTOMER)
+    }
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
 
     Scaffold(

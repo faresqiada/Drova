@@ -11,4 +11,5 @@ sealed class Screen(val route: String) {
     object CustomerHome : Screen("customer_home")
     object RestaurantDashboard : Screen("restaurant_dashboard")
     object CaptainDashboard : Screen("captain_dashboard")
+    object AdminDashboard : Screen("admin_dashboard")
 }

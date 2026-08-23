@@ -27,22 +27,25 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Gradle 9.3.1
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
-
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 9.3.1 --distribution-type bin
-
-      - name: Make Gradle executable
+      - name: Make Gradle Wrapper executable
         run: chmod +x ./gradlew
+
+      - name: Prepare build secrets
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          test -n "$MAPS_API_KEY"
+          printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > .env
 
       - name: Restore fixed debug keystore
         env:
           DROVA_DEBUG_KEYSTORE_BASE64: ${{ secrets.DROVA_DEBUG_KEYSTORE_BASE64 }}
+          DROVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DROVA_DEBUG_KEYSTORE_PASSWORD }}
+          DROVA_DEBUG_KEY_PASSWORD: ${{ secrets.DROVA_DEBUG_KEY_PASSWORD }}
         run: |
           test -n "$DROVA_DEBUG_KEYSTORE_BASE64"
+          test -n "$DROVA_DEBUG_KEYSTORE_PASSWORD"
+          test -n "$DROVA_DEBUG_KEY_PASSWORD"
           printf '%s' "$DROVA_DEBUG_KEYSTORE_BASE64" | base64 --decode > debug.keystore
           chmod 600 debug.keystore
 

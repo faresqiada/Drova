@@ -1,5 +1,6 @@
 package com.example.data.local.source
 
+import com.example.BuildConfig
 import com.example.data.mock.DrovaMockData
 import com.example.domain.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,7 @@ interface OrderLocalDataSource {
 }
 
 class OrderLocalDataSourceImpl(
-    initialOrders: List<Order> = DrovaMockData.sampleOrders
+    initialOrders: List<Order> = if (BuildConfig.DEBUG) DrovaMockData.sampleOrders else emptyList()
 ) : OrderLocalDataSource {
     private val _orders = MutableStateFlow(initialOrders)
     override val ordersFlow: StateFlow<List<Order>> = _orders.asStateFlow()
@@ -79,7 +80,7 @@ interface RestaurantLocalDataSource {
 }
 
 class RestaurantLocalDataSourceImpl(
-    initialRestaurants: List<Restaurant> = DrovaMockData.sampleRestaurants
+    initialRestaurants: List<Restaurant> = if (BuildConfig.DEBUG) DrovaMockData.sampleRestaurants else emptyList()
 ) : RestaurantLocalDataSource {
     private val _restaurants = MutableStateFlow(initialRestaurants)
     override val restaurantsFlow: StateFlow<List<Restaurant>> = _restaurants.asStateFlow()

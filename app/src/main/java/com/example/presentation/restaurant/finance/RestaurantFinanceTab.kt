@@ -34,12 +34,12 @@ fun RestaurantFinanceTab(
     val todayOrdersCount by restaurantViewModel.todayOrdersCount.collectAsState()
     val grossSalesSumEgp by restaurantViewModel.grossSalesSumEgp.collectAsState()
     val commissionDeductedEgp by restaurantViewModel.commissionDeductedEgp.collectAsState()
+    val restaurantOrders by restaurantViewModel.restaurantOrders.collectAsState()
     val netSettlementBalanceEgp by restaurantViewModel.netSettlementBalanceEgp.collectAsState()
     val settlements = restaurantViewModel.settlementHistory
 
-    val weeklySalesEgp = 32450.0
-    val totalOrdersCount = 142
-    val platformFeesTotalEgp = 710.0
+    val weeklySalesEgp = grossSalesSumEgp
+    val totalOrdersCount = restaurantOrders.count { it.status != com.example.domain.model.OrderStatus.CANCELLED && it.status != com.example.domain.model.OrderStatus.REJECTED }
     val completedSettlementsSumEgp = settlements.sumOf { it.netPayoutEgp }
 
     var showPayoutSuccessDialog by remember { mutableStateOf(false) }

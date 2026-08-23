@@ -1,8 +1,10 @@
 package com.example.data.repository
 
 import android.app.Activity
+import com.example.BuildConfig
 import com.example.core.result.DrovaResult
 import com.example.data.auth.FirebaseGoogleSignInManager
+import com.google.firebase.auth.FirebaseAuth
 import com.example.data.auth.GoogleSignInException
 import com.example.data.local.source.SessionManager
 import com.example.data.remote.dto.*
@@ -15,6 +17,7 @@ import com.example.domain.repository.AuthResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
+import java.util.Locale
 
 class AuthRepositoryImpl(
     private val sessionManager: SessionManager = SessionManager(),
@@ -30,7 +33,15 @@ class AuthRepositoryImpl(
         sessionManager.setSelectedRole(role)
     }
 
+    override suspend fun hasAdminClaim(): Boolean = try {
+        val firebaseUser = FirebaseAuth.getInstance().currentUser ?: return false
+        firebaseUser.getIdToken(false).await()?.claims?.get("admin") == true
+    } catch (_: Exception) {
+        false
+    }
+
     override fun quickSwitchRole(role: UserRole) {
+        if (!BuildConfig.DEBUG || role == UserRole.ADMIN) return
         sessionManager.setSelectedRole(role)
         val user = when (role) {
             UserRole.CUSTOMER -> User(
@@ -65,6 +76,7 @@ class AuthRepositoryImpl(
                 isOnline = true,
                 vehicleType = "دراجة نارية (موتوسيكل)"
             )
+            UserRole.ADMIN -> return
         }
         sessionManager.setCurrentUser(user)
         sessionManager.setAuthToken("token_demo_${role.name.lowercase()}")
@@ -81,12 +93,31 @@ class AuthRepositoryImpl(
         }
 
         return try {
-            val idToken = firebaseUser.getIdToken(false).await()?.token
+            val tokenResult = firebaseUser.getIdToken(false).await()
                 ?: return AuthResult.Error(
                     messageAr = "تعذر الحصول على جلسة Firebase صالحة.",
                     messageEn = "Could not obtain a valid Firebase session."
                 )
-            val role = selectedRole.value
+            val idToken = tokenResult.token
+                ?: return AuthResult.Error(
+                    messageAr = "تعذر الحصول على رمز Firebase صالح.",
+                    messageEn = "Could not obtain a valid Firebase token."
+                )
+            val isAdminClaim = tokenResult.claims["admin"] == true
+            val claimedRole = if (isAdminClaim) {
+                UserRole.ADMIN
+            } else {
+                (tokenResult.claims["role"] as? String)
+                    ?.uppercase(Locale.ROOT)
+                    ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
+            }
+            if (!BuildConfig.DEBUG && claimedRole == null) {
+                return AuthResult.Error(
+                    messageAr = "جلسة Firebase لا تحتوي على صلاحية تشغيلية موثقة.",
+                    messageEn = "The Firebase session has no verified operational role claim."
+                )
+            }
+            val role = claimedRole ?: selectedRole.value
             val user = User(
                 id = firebaseUser.uid,
                 fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() }
@@ -133,6 +164,13 @@ class AuthRepositoryImpl(
                     val token = remoteResult.data.token
                     if (userDto != null) {
                         val domainUser = userDto.toDomain()
+                        if (domainUser.role == UserRole.ADMIN && !hasAdminClaim()) {
+                            return AuthResult.Error(
+                                messageAr = "لا يمكن فتح جلسة Admin بدون Firebase custom claim.",
+                                messageEn = "An Admin session requires a verified Firebase custom claim."
+                            )
+                        }
+                        FirebaseAuth.getInstance().currentUser?.uid?.let(sessionManager::setFirebaseUid)
                         sessionManager.setCurrentUser(domainUser)
                         sessionManager.setAuthToken(token)
                         return AuthResult.Success(domainUser)
@@ -145,9 +183,22 @@ class AuthRepositoryImpl(
             }
         }
 
+        if (!BuildConfig.DEBUG) {
+            return AuthResult.Error(
+                messageAr = "تعذر تسجيل الدخول من الخادم. لا يمكن استخدام تسجيل دخول تجريبي في نسخة الإنتاج.",
+                messageEn = "Server authentication failed. Demo login is disabled in production."
+            )
+        }
+
         delay(300) // Smooth UX
 
         val role = sessionManager.selectedRole.value
+        if (role == UserRole.ADMIN) {
+            return AuthResult.Error(
+                messageAr = "لا يمكن إنشاء جلسة Admin من تسجيل الدخول التجريبي.",
+                messageEn = "An Admin session cannot be created by demo login."
+            )
+        }
         val user = when (role) {
             UserRole.CUSTOMER -> User(
                 id = "cust_1",
@@ -181,6 +232,10 @@ class AuthRepositoryImpl(
                 isOnline = true,
                 vehicleType = "دراجة نارية (موتوسيكل)"
             )
+            UserRole.ADMIN -> return AuthResult.Error(
+                messageAr = "لا يمكن إنشاء جلسة Admin من تسجيل الدخول التجريبي.",
+                messageEn = "An Admin session cannot be created by demo login."
+            )
         }
 
         sessionManager.setCurrentUser(user)
@@ -213,6 +268,13 @@ class AuthRepositoryImpl(
                 is DrovaResult.Error -> {}
                 DrovaResult.Loading -> {}
             }
+        }
+
+        if (!BuildConfig.DEBUG) {
+            return AuthResult.Error(
+                messageAr = "تعذر إنشاء الحساب من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
+                messageEn = "Server registration failed. Demo registration is disabled in production."
+            )
         }
 
         delay(300)
@@ -263,6 +325,13 @@ class AuthRepositoryImpl(
             }
         }
 
+        if (!BuildConfig.DEBUG) {
+            return AuthResult.Error(
+                messageAr = "تعذر إنشاء حساب المطعم من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
+                messageEn = "Server restaurant registration failed. Demo registration is disabled in production."
+            )
+        }
+
         delay(300)
         val user = User(
             id = "rest_${System.currentTimeMillis() % 10000}",
@@ -310,6 +379,13 @@ class AuthRepositoryImpl(
                 is DrovaResult.Error -> {}
                 DrovaResult.Loading -> {}
             }
+        }
+
+        if (!BuildConfig.DEBUG) {
+            return AuthResult.Error(
+                messageAr = "تعذر تسجيل الكابتن من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
+                messageEn = "Server captain registration failed. Demo registration is disabled in production."
+            )
         }
 
         delay(300)

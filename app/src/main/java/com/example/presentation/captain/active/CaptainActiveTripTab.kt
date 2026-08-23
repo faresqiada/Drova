@@ -1,5 +1,12 @@
 package com.example.presentation.captain.active
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +35,7 @@ import com.example.domain.model.PaymentMethod
 import com.example.presentation.captain.CaptainMainTab
 import com.example.presentation.captain.CaptainViewModel
 import com.example.ui.theme.*
+import java.io.File
 
 @Composable
 fun CaptainActiveTripTab(
@@ -35,8 +44,67 @@ fun CaptainActiveTripTab(
 ) {
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
     val activeTask by captainViewModel.activeTask.collectAsState()
+    val pickupProofState by captainViewModel.pickupProofState.collectAsState()
+    val context = LocalContext.current
     var showCallDialog by remember { mutableStateOf<String?>(null) }
     var showDeliverySuccessDialog by remember { mutableStateOf(false) }
+    var pendingCaptureFile by remember { mutableStateOf<File?>(null) }
+    var pendingOrderId by remember { mutableStateOf<String?>(null) }
+
+    fun createCaptureUri(): Uri {
+        val directory = File(context.cacheDir, "pickup_proof").apply { mkdirs() }
+        val file = File.createTempFile("pickup_proof_", ".jpg", directory)
+        pendingCaptureFile = file
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { captured ->
+        val file = pendingCaptureFile
+        pendingCaptureFile = null
+        val orderId = pendingOrderId
+        pendingOrderId = null
+        if (captured && file != null && orderId != null && file.exists()) {
+            captainViewModel.confirmPickupWithProof(orderId, file)
+        } else {
+            file?.delete()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            runCatching { cameraLauncher.launch(createCaptureUri()) }
+                .onFailure { error ->
+                    pendingOrderId = null
+                    pendingCaptureFile?.delete()
+                    pendingCaptureFile = null
+                    captainViewModel.setPickupProofFailure("تعذر تشغيل الكاميرا. حاول مرة أخرى.")
+                }
+        } else {
+            pendingOrderId = null
+            captainViewModel.setPickupProofFailure("يلزم السماح بالكاميرا لتصوير إثبات الاستلام.")
+        }
+    }
+
+    fun openCamera(orderId: String) {
+        captainViewModel.clearPickupProofState()
+        pendingOrderId = orderId
+        runCatching {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                cameraLauncher.launch(createCaptureUri())
+            } else {
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }.onFailure {
+            pendingOrderId = null
+            pendingCaptureFile?.delete()
+            pendingCaptureFile = null
+            captainViewModel.setPickupProofFailure("تعذر تجهيز الكاميرا. حاول مرة أخرى.")
+        }
+    }
 
     if (activeTask == null) {
         // Empty State: No active trip currently
@@ -613,16 +681,54 @@ fun CaptainActiveTripTab(
                 }
             }
 
-            // 7. Contextual Lifecycle Action Buttons
+            // 7. Pickup Proof Validation Status
+            if (pickupProofState !is com.example.presentation.captain.PickupProofUiState.Idle && task.status == OrderStatus.CAPTAIN_ASSIGNED) {
+                item {
+                    val statusText = when (val state = pickupProofState) {
+                        com.example.presentation.captain.PickupProofUiState.Validating -> "جاري فحص الصورة ورفع الإثبات..."
+                        com.example.presentation.captain.PickupProofUiState.Failure -> state.messageAr
+                        com.example.presentation.captain.PickupProofUiState.Success -> "تم تأكيد استلام الطلب"
+                        com.example.presentation.captain.PickupProofUiState.Idle -> ""
+                    }
+                    val isError = pickupProofState is com.example.presentation.captain.PickupProofUiState.Failure
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().testTag("pickup_proof_validation_status"),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isError) MaterialTheme.colorScheme.errorContainer else DrovaSuccessContainer,
+                        border = BorderStroke(1.dp, if (isError) MaterialTheme.colorScheme.error else DrovaSuccess)
+                    ) {
+                        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (pickupProofState is com.example.presentation.captain.PickupProofUiState.Validating) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    imageVector = if (isError) Icons.Default.Error else Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = if (isError) MaterialTheme.colorScheme.error else DrovaSuccessText,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (isError) MaterialTheme.colorScheme.onErrorContainer else DrovaSuccessText,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 8. Contextual Lifecycle Action Buttons
             item {
                 when (task.status) {
                     OrderStatus.CAPTAIN_ASSIGNED -> {
                         DrovaPrimaryButton(
-                            text = if (isAr) "تأكيد استلام الطلب من المطعم" else "Confirm Pickup from Restaurant",
-                            onClick = {
-                                captainViewModel.updateActiveTaskStatus(task.orderId, OrderStatus.PICKED_UP)
-                            },
-                            leadingIcon = Icons.Default.Storefront,
+                            text = if (isAr) "تصوير الفاتورة وتأكيد الاستلام" else "Photograph Invoice & Confirm Pickup",
+                            onClick = { openCamera(task.orderId) },
+                            leadingIcon = Icons.Default.CameraAlt,
                             testTag = "cap_confirm_pickup_btn"
                         )
                     }

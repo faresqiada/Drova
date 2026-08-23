@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.core.designsystem.*
 import com.example.domain.model.UserRole
 import com.example.ui.theme.*
@@ -50,8 +51,8 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val activity = LocalContext.current as? Activity
 
-    var phoneOrEmail by remember { mutableStateOf("01012345678") }
-    var password by remember { mutableStateOf("123456") }
+    var phoneOrEmail by remember { mutableStateOf(if (BuildConfig.DEBUG) "01012345678" else "") }
+    var password by remember { mutableStateOf(if (BuildConfig.DEBUG) "123456" else "") }
 
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }

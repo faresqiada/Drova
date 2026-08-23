@@ -4,6 +4,7 @@ import com.example.core.result.DrovaError
 import com.example.core.result.DrovaResult
 import com.example.data.local.source.OrderLocalDataSource
 import com.example.data.local.source.OrderLocalDataSourceImpl
+import com.example.data.pickupproof.PickupProofService
 import com.example.data.remote.dto.*
 import com.example.data.remote.source.OrderRemoteDataSource
 import com.example.domain.model.Order
@@ -12,13 +13,15 @@ import com.example.domain.model.OrderTimelineEvent
 import com.example.domain.model.UserRole
 import com.example.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.StateFlow
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class OrderRepositoryImpl(
     private val localDataSource: OrderLocalDataSource = OrderLocalDataSourceImpl(),
-    private val remoteDataSource: OrderRemoteDataSource? = null
+    private val remoteDataSource: OrderRemoteDataSource? = null,
+    private val pickupProofService: PickupProofService? = null
 ) : OrderRepository {
 
     override val allOrders: StateFlow<List<Order>> = localDataSource.ordersFlow
@@ -200,6 +203,14 @@ class OrderRepositoryImpl(
     }
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus): DrovaResult<Boolean> {
+        if (newStatus == OrderStatus.PICKED_UP) {
+            return DrovaResult.Error(
+                error = DrovaError.Domain.InvalidStateTransition(OrderStatus.CAPTAIN_ASSIGNED.name, newStatus.name),
+                messageAr = "لا يمكن تأكيد الاستلام بدون إثبات مصور صالح من الكابتن المسند",
+                messageEn = "Pickup requires valid proof from the assigned captain"
+            )
+        }
+
         val existingOrder = localDataSource.getOrderById(orderId)
             ?: return DrovaResult.Error(
                 error = DrovaError.Domain.OrderNotFound(orderId),
@@ -252,6 +263,88 @@ class OrderRepositoryImpl(
             }
         }
 
+        return DrovaResult.Success(true)
+    }
+
+    override suspend fun confirmPickupWithProof(
+        orderId: String,
+        captainId: String,
+        imageFile: File
+    ): com.example.domain.model.PickupProofConfirmation {
+        val order = localDataSource.getOrderById(orderId)
+            ?: return com.example.domain.model.PickupProofConfirmation.Failure(
+                com.example.domain.model.PickupProofFailure.UNKNOWN,
+                "الطلب غير موجود.",
+                "Order not found."
+            )
+        val service = pickupProofService
+            ?: return com.example.domain.model.PickupProofConfirmation.Failure(
+                com.example.domain.model.PickupProofFailure.NETWORK_ERROR,
+                "خدمة إثبات الاستلام غير مهيأة.",
+                "Pickup proof service is not configured."
+            )
+        return service.confirmPickup(order, captainId, imageFile)
+    }
+
+    override suspend fun applyValidatedPickupProof(
+        orderId: String,
+        captainId: String,
+        proof: com.example.domain.model.PickupProof
+    ): DrovaResult<Boolean> {
+        val existingOrder = localDataSource.getOrderById(orderId)
+            ?: return DrovaResult.Error(
+                error = DrovaError.Domain.OrderNotFound(orderId),
+                messageAr = "الطلب غير موجود.",
+                messageEn = "Order not found."
+            )
+        if (existingOrder.status != OrderStatus.CAPTAIN_ASSIGNED || existingOrder.captainId != captainId) {
+            return DrovaResult.Error(
+                error = DrovaError.Domain.InvalidStateTransition(existingOrder.status.name, OrderStatus.PICKED_UP.name),
+                messageAr = "الطلب غير مسند للكابتن أو لم يعد في حالة التعيين.",
+                messageEn = "The order is not assigned to this captain or is no longer assigned."
+            )
+        }
+        if (existingOrder.pickupProof != null || proof.orderId != orderId || proof.captainId != captainId ||
+            proof.validationStatus != com.example.domain.model.PickupProofValidationStatus.VALIDATED) {
+            return DrovaResult.Error(
+                error = DrovaError.Domain.InvalidStateTransition(existingOrder.status.name, OrderStatus.PICKED_UP.name),
+                messageAr = "إثبات الاستلام غير صالح أو تم تأكيده مسبقاً.",
+                messageEn = "The pickup proof is invalid or has already been confirmed."
+            )
+        }
+
+        val newEvent = OrderTimelineEvent(
+            status = OrderStatus.PICKED_UP,
+            timestampMillis = System.currentTimeMillis(),
+            formattedTime = getCurrentFormattedTime(),
+            titleAr = "تم التحقق من إثبات الاستلام",
+            titleEn = "Pickup Proof Verified",
+            noteAr = "تم تأكيد استلام الطلب من المطعم بواسطة الكابتن المسند",
+            noteEn = "Pickup was confirmed by the assigned captain",
+            actorRole = UserRole.CAPTAIN
+        )
+        localDataSource.updateOrder(
+            existingOrder.copy(
+                status = OrderStatus.PICKED_UP,
+                pickupProof = proof,
+                timeline = existingOrder.timeline + newEvent
+            )
+        )
+        remoteDataSource?.let { remote ->
+            try {
+                remote.updateOrderStatus(
+                    orderId,
+                    UpdateOrderStatusRequestDto(
+                        orderId = orderId,
+                        newStatus = OrderStatus.PICKED_UP.name,
+                        actorRole = UserRole.CAPTAIN.name,
+                        note = "pickup_proof:${proof.proofId}"
+                    )
+                )
+            } catch (_: Exception) {
+                // Firestore remains the authoritative proof-gated state source.
+            }
+        }
         return DrovaResult.Success(true)
     }
 

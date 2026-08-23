@@ -66,6 +66,7 @@ data class AuthResponseDto(
 // DTO <-> Domain Mappers
 fun UserDto.toDomain(): User {
     val userRole = when (role.uppercase()) {
+        "ADMIN" -> UserRole.ADMIN
         "RESTAURANT" -> UserRole.RESTAURANT
         "CAPTAIN" -> UserRole.CAPTAIN
         else -> UserRole.CUSTOMER

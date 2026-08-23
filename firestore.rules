@@ -1,0 +1,199 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function isCaptain() {
+      return signedIn() && request.auth.token.role == 'CAPTAIN';
+    }
+
+    function isRestaurant() {
+      return signedIn() && request.auth.token.role == 'RESTAURANT';
+    }
+
+    function isCustomer() {
+      return signedIn() && request.auth.token.role == 'CUSTOMER';
+    }
+
+    function orderRef(orderId) {
+      return /databases/$(database)/documents/orders/$(orderId);
+    }
+
+    function currentOrder(orderId) {
+      return get(orderRef(orderId));
+    }
+
+    function orderAfter(orderId) {
+      return getAfter(orderRef(orderId));
+    }
+
+    function isAssignedCaptain(orderId) {
+      return isCaptain() && currentOrder(orderId).data.captainId == request.auth.uid;
+    }
+
+    function isOrderRestaurant(orderId) {
+      return isRestaurant() && currentOrder(orderId).data.restaurantId == request.auth.uid;
+    }
+
+    function isOrderCustomer(orderId) {
+      return isCustomer() && currentOrder(orderId).data.customerId == request.auth.uid;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || isOrderCustomer(orderId) || isOrderRestaurant(orderId) || isAssignedCaptain(orderId);
+
+      allow create: if isCustomer()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.status == 'CREATED'
+        && !request.resource.data.keys().hasAny(['pickupProof', 'pickupProofId']);
+
+      // Admin order writes are limited to documented state-machine transitions.
+      allow update: if (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'timeline', 'rejectionReason', 'updatedAt'
+          ])
+          && (
+            (resource.data.status == 'CREATED' && request.resource.data.status in ['RESTAURANT_CONFIRMED', 'REJECTED'])
+            || (resource.data.status == 'RESTAURANT_CONFIRMED' && request.resource.data.status == 'PREPARING')
+            || (resource.data.status == 'PREPARING' && request.resource.data.status == 'READY_FOR_PICKUP')
+            || (resource.data.status == 'READY_FOR_PICKUP' && request.resource.data.status == 'CAPTAIN_ASSIGNED')
+            || (resource.data.status == 'PICKED_UP' && request.resource.data.status == 'ON_THE_WAY')
+            || (resource.data.status == 'ON_THE_WAY' && request.resource.data.status == 'DELIVERED')
+            || (resource.data.status == 'DELIVERED' && request.resource.data.status == 'COMPLETED')
+          )
+        )
+        || (
+          isOrderCustomer(orderId)
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'customerName', 'customerPhone', 'deliveryAddressAr', 'deliveryAddressEn',
+            'deliveryCoordinates', 'specialInstructions', 'updatedAt'
+          ])
+        )
+        || (
+          isOrderRestaurant(orderId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'timeline', 'rejectionReason', 'updatedAt'
+          ])
+          && (
+            (resource.data.status == 'CREATED' && request.resource.data.status in ['RESTAURANT_CONFIRMED', 'REJECTED'])
+            || (resource.data.status == 'RESTAURANT_CONFIRMED' && request.resource.data.status == 'PREPARING')
+            || (resource.data.status == 'PREPARING' && request.resource.data.status == 'READY_FOR_PICKUP')
+          )
+        )
+        || (
+          isAssignedCaptain(orderId)
+          && resource.data.status == 'CAPTAIN_ASSIGNED'
+          && request.resource.data.status == 'PICKED_UP'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'pickupProofId', 'pickupProof', 'timeline', 'updatedAt'
+          ])
+          && request.resource.data.pickupProofId is string
+          && request.resource.data.pickupProof.orderId == orderId
+          && request.resource.data.pickupProof.captainId == request.auth.uid
+          && request.resource.data.pickupProof.proofId == request.resource.data.pickupProofId
+          && request.resource.data.pickupProof.validationStatus == 'VALIDATED'
+          && existsAfter(/databases/$(database)/documents/orders/$(orderId)/pickupProofs/$(request.resource.data.pickupProofId))
+          && orderAfter(orderId).data.status == 'PICKED_UP';
+        );
+
+      allow delete: if isAdmin();
+
+      match /pickupProofs/{proofId} {
+        allow read: if isAdmin() || isOrderCustomer(orderId) || isOrderRestaurant(orderId) || isAssignedCaptain(orderId);
+
+        allow create: if isAssignedCaptain(orderId)
+          && request.resource.data.proofId == proofId
+          && request.resource.data.orderId == orderId
+          && request.resource.data.captainId == request.auth.uid
+          && request.resource.data.validationStatus == 'VALIDATED'
+          && orderAfter(orderId).data.status == 'PICKED_UP'
+          && orderAfter(orderId).data.pickupProofId == proofId;
+
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /captains/{captainId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /captain_assignment_requests/{requestId} {
+      allow read: if isAdmin();
+      allow create, delete: if false;
+      allow update: if isAdmin()
+        && resource.data.status == 'PENDING'
+        && request.resource.data.status in ['APPROVED', 'REJECTED']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'selectedCaptainIds', 'dedicatedCaptainIds',
+          'approvedByAdminUid', 'approvedAt', 'rejectedByAdminUid',
+          'rejectedAt', 'rejectionReason', 'updatedAt'
+        ])
+        && (
+          (
+            request.resource.data.status == 'APPROVED'
+            && request.resource.data.approvedByAdminUid == request.auth.uid
+            && request.resource.data.selectedCaptainIds is list
+            && request.resource.data.dedicatedCaptainIds is list
+            && request.resource.data.approvedAt is timestamp
+          )
+          || (
+            request.resource.data.status == 'REJECTED'
+            && request.resource.data.rejectedByAdminUid == request.auth.uid
+            && request.resource.data.rejectionReason is string
+            && request.resource.data.rejectionReason.size() > 0
+            && request.resource.data.rejectedAt is timestamp
+          )
+        );
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.assignedByAdminUid == request.auth.uid
+        && request.resource.data.assignmentId == assignmentId
+        && request.resource.data.status == 'ACTIVE'
+        && request.resource.data.keys().hasOnly([
+          'assignmentId', 'requestId', 'restaurantId', 'captainId',
+          'status', 'assignedByAdminUid', 'createdAt', 'updatedAt'
+        ]);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['ACTIVE', 'COMPLETED', 'CANCELLED', 'REJECTED'];
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'phone', 'photoUrl', 'updatedAt'
+        ]));
+      allow delete: if isAdmin();
+    }
+
+    match /admin/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

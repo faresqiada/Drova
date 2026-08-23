@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function isCaptain() {
+      return signedIn() && request.auth.token.role == 'CAPTAIN';
+    }
+
+    function isRestaurant() {
+      return signedIn() && request.auth.token.role == 'RESTAURANT';
+    }
+
+    function isCustomer() {
+      return signedIn() && request.auth.token.role == 'CUSTOMER';
+    }
+
+    function orderDocument(orderId) {
+      return firestore.get(/databases/(default)/documents/orders/$(orderId));
+    }
+
+    function isAssignedCaptain(orderId, captainId) {
+      return isCaptain()
+        && request.auth.uid == captainId
+        && orderDocument(orderId).data.captainId == request.auth.uid;
+    }
+
+    function canUploadPickupProof(orderId, captainId) {
+      return isAssignedCaptain(orderId, captainId)
+        && orderDocument(orderId).data.status == 'CAPTAIN_ASSIGNED';
+    }
+
+    function isOrderRestaurant(orderId) {
+      return isRestaurant()
+        && orderDocument(orderId).data.restaurantId == request.auth.uid;
+    }
+
+    function isOrderCustomer(orderId) {
+      return isCustomer()
+        && orderDocument(orderId).data.customerId == request.auth.uid;
+    }
+
+    match /orders/{orderId}/pickup-proof/{captainId}/{proofId}.jpg {
+      allow read: if isAdmin()
+        || isAssignedCaptain(orderId, captainId)
+        || isOrderRestaurant(orderId)
+        || isOrderCustomer(orderId);
+
+      allow create: if canUploadPickupProof(orderId, captainId)
+        && request.resource != null
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size > 8192
+        && request.resource.size <= 10 * 1024 * 1024
+        && resource == null;
+
+      // Proof files are immutable for clients. Admin cleanup remains possible.
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

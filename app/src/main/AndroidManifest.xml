@@ -5,6 +5,7 @@
     <!-- Network & Internet Access -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Location Permissions for Live Delivery Tracking -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -22,6 +23,18 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/maps_api_key" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/pickup_proof_paths" />
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"

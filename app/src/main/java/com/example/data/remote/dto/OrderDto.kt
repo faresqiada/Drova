@@ -36,6 +36,23 @@ data class OrderTimelineEventDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class PickupProofDto(
+    @Json(name = "proof_id") val proofId: String,
+    @Json(name = "order_id") val orderId: String,
+    @Json(name = "captain_id") val captainId: String,
+    @Json(name = "storage_path") val storagePath: String,
+    @Json(name = "captured_at") val capturedAt: Long,
+    @Json(name = "image_width") val imageWidth: Int,
+    @Json(name = "image_height") val imageHeight: Int,
+    @Json(name = "file_size_bytes") val fileSizeBytes: Long,
+    @Json(name = "content_type") val contentType: String = "image/jpeg",
+    @Json(name = "has_receipt_text") val hasReceiptText: Boolean,
+    @Json(name = "order_identifier_matched") val orderIdentifierMatched: Boolean,
+    @Json(name = "validation_status") val validationStatus: String,
+    @Json(name = "validation_message") val validationMessage: String = ""
+)
+
+@JsonClass(generateAdapter = true)
 data class OrderDto(
     @Json(name = "id") val id: String,
     @Json(name = "order_number") val orderNumber: String,
@@ -73,7 +90,8 @@ data class OrderDto(
     @Json(name = "special_instructions") val specialInstructions: String = "",
     @Json(name = "timeline") val timeline: List<OrderTimelineEventDto> = emptyList(),
     @Json(name = "cancellation_reason") val cancellationReason: String? = null,
-    @Json(name = "rejection_reason") val rejectionReason: String? = null
+    @Json(name = "rejection_reason") val rejectionReason: String? = null,
+    @Json(name = "pickup_proof") val pickupProof: PickupProofDto? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -182,6 +200,38 @@ fun OrderTimelineEvent.toDto(): OrderTimelineEventDto = OrderTimelineEventDto(
     actorRole = actorRole?.name
 )
 
+fun PickupProofDto.toDomain(): PickupProof = PickupProof(
+    proofId = proofId,
+    orderId = orderId,
+    captainId = captainId,
+    storagePath = storagePath,
+    capturedAt = capturedAt,
+    imageWidth = imageWidth,
+    imageHeight = imageHeight,
+    fileSizeBytes = fileSizeBytes,
+    contentType = contentType,
+    hasReceiptText = hasReceiptText,
+    orderIdentifierMatched = orderIdentifierMatched,
+    validationStatus = try { PickupProofValidationStatus.valueOf(validationStatus) } catch (_: Exception) { PickupProofValidationStatus.INVALID },
+    validationMessage = validationMessage
+)
+
+fun PickupProof.toDto(): PickupProofDto = PickupProofDto(
+    proofId = proofId,
+    orderId = orderId,
+    captainId = captainId,
+    storagePath = storagePath,
+    capturedAt = capturedAt,
+    imageWidth = imageWidth,
+    imageHeight = imageHeight,
+    fileSizeBytes = fileSizeBytes,
+    contentType = contentType,
+    hasReceiptText = hasReceiptText,
+    orderIdentifierMatched = orderIdentifierMatched,
+    validationStatus = validationStatus.name,
+    validationMessage = validationMessage
+)
+
 fun OrderDto.toDomain(): Order {
     val orderStatus = try {
         OrderStatus.valueOf(status)
@@ -238,7 +288,8 @@ fun OrderDto.toDomain(): Order {
         specialInstructions = specialInstructions,
         timeline = timeline.map { it.toDomain() },
         cancellationReason = cancellationReason,
-        rejectionReason = rejectionReason
+        rejectionReason = rejectionReason,
+        pickupProof = pickupProof?.toDomain()
     )
 }
 
@@ -279,5 +330,6 @@ fun Order.toDto(): OrderDto = OrderDto(
     specialInstructions = specialInstructions,
     timeline = timeline.map { it.toDto() },
     cancellationReason = cancellationReason,
-    rejectionReason = rejectionReason
+    rejectionReason = rejectionReason,
+    pickupProof = pickupProof?.toDto()
 )

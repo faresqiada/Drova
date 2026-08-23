@@ -9,6 +9,7 @@ import com.example.domain.repository.CaptainRepository
 import com.example.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 
 class CaptainViewModel(
     private val authRepository: AuthRepository = ServiceLocator.authRepository,
@@ -30,6 +31,9 @@ class CaptainViewModel(
 
     private val _userFeedbackMessage = MutableStateFlow<String?>(null)
     val userFeedbackMessage: StateFlow<String?> = _userFeedbackMessage.asStateFlow()
+
+    private val _pickupProofState = MutableStateFlow<PickupProofUiState>(PickupProofUiState.Idle)
+    val pickupProofState: StateFlow<PickupProofUiState> = _pickupProofState.asStateFlow()
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
     val isOnline: StateFlow<Boolean> = captainRepository.isOnline
@@ -93,6 +97,31 @@ class CaptainViewModel(
         }
     }
 
+    fun confirmPickupWithProof(orderId: String, imageFile: File) {
+        _pickupProofState.value = PickupProofUiState.Validating
+        viewModelScope.launch {
+            when (val result = captainRepository.confirmPickup(orderId, imageFile)) {
+                is PickupProofConfirmation.Success -> {
+                    _pickupProofState.value = PickupProofUiState.Success
+                    _userFeedbackMessage.value = "تم التحقق من الإثبات وتأكيد استلام الطلب"
+                }
+                is PickupProofConfirmation.Failure -> {
+                    _pickupProofState.value = PickupProofUiState.Failure(result.messageAr)
+                    _userFeedbackMessage.value = result.messageAr
+                }
+            }
+        }
+    }
+
+    fun clearPickupProofState() {
+        _pickupProofState.value = PickupProofUiState.Idle
+    }
+
+    fun setPickupProofFailure(messageAr: String) {
+        _pickupProofState.value = PickupProofUiState.Failure(messageAr)
+        _userFeedbackMessage.value = messageAr
+    }
+
     fun updateActiveTaskStatus(orderId: String, newStatus: OrderStatus, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             val success = captainRepository.updateTaskStatus(orderId, newStatus)
@@ -152,4 +181,11 @@ class CaptainViewModel(
     fun clearFeedbackMessage() {
         _userFeedbackMessage.value = null
     }
+}
+
+sealed interface PickupProofUiState {
+    data object Idle : PickupProofUiState
+    data object Validating : PickupProofUiState
+    data object Success : PickupProofUiState
+    data class Failure(val messageAr: String) : PickupProofUiState
 }

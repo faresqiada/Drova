@@ -26,7 +26,7 @@ class ExampleRobolectricTest {
 
   @Test
   fun `deterministic end-to-end order lifecycle scenario DROVA-1001`() = runBlocking {
-    val orderRepository = OrderRepositoryImpl()
+    val orderRepository = OrderRepositoryImpl(pickupProofService = FakePickupProofService())
     val captainRepository = CaptainRepositoryImpl(orderRepository)
 
     // 1. Customer creates DROVA-1001 (2x Chicken Shawarma Meal, Cash on Delivery)
@@ -97,9 +97,13 @@ class ExampleRobolectricTest {
     assertEquals("محمود عادل (كابتن DROVA)", orderAfterAccept?.captainName)
     assertEquals(OrderStatus.CAPTAIN_ASSIGNED, captainRepository.activeTask.value?.status)
 
-    // 6. Captain arrives at restaurant & collects meal (STAGE 6)
-    val pickupSuccess = captainRepository.updateTaskStatus("DROVA-1001", OrderStatus.PICKED_UP)
-    assertTrue(pickupSuccess)
+    // 6. Captain arrives at restaurant; direct state update is rejected.
+    val directPickupSuccess = captainRepository.updateTaskStatus("DROVA-1001", OrderStatus.PICKED_UP)
+    assertFalse(directPickupSuccess)
+    val proofFile = java.io.File.createTempFile("pickup-proof-robolectric", ".jpg")
+    val pickupConfirmation = captainRepository.confirmPickup("DROVA-1001", proofFile)
+    proofFile.delete()
+    assertTrue(pickupConfirmation is PickupProofConfirmation.Success)
     assertEquals(OrderStatus.PICKED_UP, orderRepository.getOrderById("DROVA-1001")?.status)
     assertEquals(OrderStatus.PICKED_UP, captainRepository.activeTask.value?.status)
 

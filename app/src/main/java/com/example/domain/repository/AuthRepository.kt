@@ -20,6 +20,7 @@ interface AuthRepository {
     fun setSelectedRole(role: UserRole)
     suspend fun login(phoneOrEmail: String, pinOrPassword: String): AuthResult
     suspend fun signInWithGoogle(activity: Activity): AuthResult
+    suspend fun hasAdminClaim(): Boolean
     suspend fun registerCustomer(fullName: String, phone: String, city: String, district: String): AuthResult
     suspend fun registerRestaurant(businessName: String, managerName: String, phone: String, commercialRegister: String, address: String): AuthResult
     suspend fun registerCaptain(fullName: String, phone: String, nationalId: String, vehicleType: String, captainMode: CaptainMode): AuthResult

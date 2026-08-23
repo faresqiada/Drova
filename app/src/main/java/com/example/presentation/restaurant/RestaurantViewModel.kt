@@ -2,6 +2,7 @@ package com.example.presentation.restaurant
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.core.di.ServiceLocator
 import com.example.domain.model.*
 import com.example.domain.repository.AuthRepository
@@ -254,6 +255,7 @@ class RestaurantViewModel(
     }
 
     fun simulateCaptainPickup(orderId: String) {
+        if (!BuildConfig.DEBUG) return
         viewModelScope.launch {
             orderRepository.advanceOrderStatus(orderId, OrderStatus.PICKED_UP)
             refreshSelectedOrderDetail(orderId)
@@ -261,6 +263,7 @@ class RestaurantViewModel(
     }
 
     fun simulateOrderDelivery(orderId: String) {
+        if (!BuildConfig.DEBUG) return
         viewModelScope.launch {
             orderRepository.advanceOrderStatus(orderId, OrderStatus.DELIVERED)
             refreshSelectedOrderDetail(orderId)
@@ -324,14 +327,16 @@ class RestaurantViewModel(
     // In-App Alerts System
     // ==========================================
     private val _activeAlert = MutableStateFlow<RestaurantAlert?>(
-        RestaurantAlert(
-            titleAr = "طلب جديد وارد! (#DRV-9012)",
-            titleEn = "New Order Incoming! (#DRV-9012)",
-            messageAr = "طلب جديد من سارة إبراهيم بقيمة 365.00 ج.م بانتظار التأكيد",
-            messageEn = "New order awaiting your confirmation",
-            type = AlertType.NEW_ORDER,
-            orderId = "ord_105"
-        )
+        if (BuildConfig.DEBUG) {
+            RestaurantAlert(
+                titleAr = "طلب جديد وارد! (#DRV-9012)",
+                titleEn = "New Order Incoming! (#DRV-9012)",
+                messageAr = "طلب جديد من سارة إبراهيم بقيمة 365.00 ج.م بانتظار التأكيد",
+                messageEn = "New order awaiting your confirmation",
+                type = AlertType.NEW_ORDER,
+                orderId = "ord_105"
+            )
+        } else null
     )
     val activeAlert: StateFlow<RestaurantAlert?> = _activeAlert.asStateFlow()
 
@@ -489,20 +494,20 @@ class RestaurantViewModel(
     val grossSalesSumEgp: StateFlow<Double> = restaurantOrders.map { orders ->
         orders.filter { it.status != OrderStatus.CANCELLED && it.status != OrderStatus.REJECTED }
             .sumOf { it.subtotalEgp }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2480.0)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), if (BuildConfig.DEBUG) 2480.0 else 0.0)
 
     val commissionDeductedEgp: StateFlow<Double> = grossSalesSumEgp.map { gross ->
         (gross * (commissionRatePercent / 100.0))
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 297.6)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), if (BuildConfig.DEBUG) 297.6 else 0.0)
 
     val netSettlementBalanceEgp: StateFlow<Double> = combine(
         grossSalesSumEgp,
         commissionDeductedEgp
     ) { gross, commission ->
-        gross - commission + 12450.0 // Added accumulated unwithdrawn balance
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 14632.40)
+        gross - commission + if (BuildConfig.DEBUG) 12450.0 else 0.0
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), if (BuildConfig.DEBUG) 14632.40 else 0.0)
 
-    val settlementHistory: List<SettlementRecord> = listOf(
+    val settlementHistory: List<SettlementRecord> = if (BuildConfig.DEBUG) listOf(
         SettlementRecord(
             id = "set_1",
             referenceNumber = "PAY-2026-0815",
@@ -533,5 +538,5 @@ class RestaurantViewModel(
             commissionEgp = 3540.0,
             netPayoutEgp = 25960.0
         )
-    )
+    ) else emptyList()
 }

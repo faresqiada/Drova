@@ -2,6 +2,7 @@ package com.example.presentation.customer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.core.di.ServiceLocator
 import com.example.data.mock.DrovaMockData
 import com.example.domain.model.*
@@ -52,10 +53,23 @@ class CustomerViewModel(
     // ==========================================
     // Addresses
     // ==========================================
-    private val _savedAddresses = MutableStateFlow<List<SavedAddress>>(DrovaMockData.sampleAddresses)
+    private val noRealAddress = SavedAddress(
+        id = "__no_real_address__",
+        labelAr = "لم تتم إضافة عنوان",
+        labelEn = "No address added",
+        districtAr = "",
+        detailedAddressAr = "",
+        isDefault = false
+    )
+
+    private val _savedAddresses = MutableStateFlow(
+        if (BuildConfig.DEBUG) DrovaMockData.sampleAddresses else emptyList()
+    )
     val savedAddresses: StateFlow<List<SavedAddress>> = _savedAddresses.asStateFlow()
 
-    private val _selectedAddress = MutableStateFlow(DrovaMockData.sampleAddresses.first())
+    private val _selectedAddress = MutableStateFlow(
+        if (BuildConfig.DEBUG) DrovaMockData.sampleAddresses.first() else noRealAddress
+    )
     val selectedAddress: StateFlow<SavedAddress> = _selectedAddress.asStateFlow()
 
     // ==========================================
@@ -367,7 +381,7 @@ class CustomerViewModel(
         val items = _cartItems.value
         val address = _selectedAddress.value
 
-        if (restaurant == null || items.isEmpty()) return
+        if (restaurant == null || items.isEmpty() || address.id == noRealAddress.id) return
 
         viewModelScope.launch {
             _isPlacingOrder.value = true

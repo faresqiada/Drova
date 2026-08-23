@@ -124,7 +124,8 @@ data class Order(
     // Audit & Reasons
     val timeline: List<OrderTimelineEvent> = emptyList(),
     val cancellationReason: String? = null,
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+    val pickupProof: PickupProof? = null
 ) {
     // Computed Helpers
     val totalQuantity: Int get() = items.sumOf { it.quantity }

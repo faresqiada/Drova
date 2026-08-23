@@ -15,7 +15,7 @@ class ProductionReadinessTest {
 
     @Test
     fun `test complete 9-stage canonical lifecycle with Ahmed Mostafa scenario DROVA-1001`() = runBlocking {
-        val orderRepository = OrderRepositoryImpl()
+        val orderRepository = OrderRepositoryImpl(pickupProofService = FakePickupProofService())
         val captainRepository = CaptainRepositoryImpl(orderRepository)
 
         // 1. Customer Ahmed Mostafa creates order DROVA-1001 (2x Chicken Meal, Cash on Delivery)
@@ -82,8 +82,12 @@ class ProductionReadinessTest {
         assertEquals(OrderStatus.CAPTAIN_ASSIGNED, currentOrder?.status)
         assertNotNull(currentOrder?.captainId)
 
-        // STAGE 6: Captain picks up from restaurant
-        assertTrue(captainRepository.updateTaskStatus("DROVA-1001", OrderStatus.PICKED_UP))
+        // STAGE 6: Direct pickup bypass is rejected; proof-gated confirmation succeeds.
+        assertFalse(captainRepository.updateTaskStatus("DROVA-1001", OrderStatus.PICKED_UP))
+        val proofFile = java.io.File.createTempFile("pickup-proof-test", ".jpg")
+        val pickupConfirmation = captainRepository.confirmPickup("DROVA-1001", proofFile)
+        proofFile.delete()
+        assertTrue(pickupConfirmation is PickupProofConfirmation.Success)
         currentOrder = orderRepository.getOrderById("DROVA-1001")
         assertEquals(OrderStatus.PICKED_UP, currentOrder?.status)
 
@@ -107,7 +111,7 @@ class ProductionReadinessTest {
 
     @Test
     fun `test strict invalid state transition guards`() = runBlocking {
-        val orderRepository = OrderRepositoryImpl()
+        val orderRepository = OrderRepositoryImpl(pickupProofService = FakePickupProofService())
 
         val sampleOrder = Order(
             id = "test_guard_order",
@@ -152,8 +156,17 @@ class ProductionReadinessTest {
         // 5. CAPTAIN_ASSIGNED -> COMPLETED (Illegal bypass)
         assertFalse(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.COMPLETED))
 
-        // Advance through proper stages: PICKED_UP -> ON_THE_WAY -> DELIVERED -> COMPLETED
-        assertTrue(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.PICKED_UP))
+        // Direct CAPTAIN_ASSIGNED -> PICKED_UP remains rejected even after assignment.
+        assertFalse(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.PICKED_UP))
+        val proofFile = java.io.File.createTempFile("pickup-proof-guard-test", ".jpg")
+        val proofResult = orderRepository.confirmPickupWithProof("test_guard_order", "cap_test", proofFile)
+        proofFile.delete()
+        assertTrue(proofResult is PickupProofConfirmation.Success)
+        assertTrue(orderRepository.applyValidatedPickupProof(
+            "test_guard_order",
+            "cap_test",
+            (proofResult as PickupProofConfirmation.Success).proof
+        ) is DrovaResult.Success)
         assertTrue(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.ON_THE_WAY))
         assertTrue(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.DELIVERED))
         assertTrue(orderRepository.advanceOrderStatus("test_guard_order", OrderStatus.COMPLETED))

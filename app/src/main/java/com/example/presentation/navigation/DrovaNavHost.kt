@@ -7,9 +7,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.BuildConfig
+import com.example.core.di.ServiceLocator
 import androidx.navigation.compose.rememberNavController
 import com.example.domain.model.UserRole
 import com.example.presentation.auth.AuthViewModel
+import com.example.presentation.admin.AdminDashboardScreen
+import com.example.presentation.admin.AdminViewModel
 import com.example.presentation.auth.LoginScreen
 import com.example.presentation.auth.RegisterScreen
 import com.example.presentation.captain.CaptainDashboardScreen
@@ -80,6 +84,7 @@ fun DrovaNavHost(
                         UserRole.CUSTOMER -> Screen.CustomerHome.route
                         UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
                         UserRole.CAPTAIN -> Screen.CaptainDashboard.route
+                        UserRole.ADMIN -> Screen.AdminDashboard.route
                     }
                     navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
@@ -105,6 +110,7 @@ fun DrovaNavHost(
                         UserRole.CUSTOMER -> Screen.CustomerHome.route
                         UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
                         UserRole.CAPTAIN -> Screen.CaptainDashboard.route
+                        UserRole.ADMIN -> Screen.AdminDashboard.route
                     }
                     navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
@@ -126,14 +132,17 @@ fun DrovaNavHost(
             CustomerHomeScreen(
                 customerViewModel = customerViewModel,
                 onRoleSwitch = { newRole ->
-                    authViewModel.quickSwitchRole(newRole)
-                    when (newRole) {
+                    if (BuildConfig.DEBUG) {
+                        authViewModel.quickSwitchRole(newRole)
+                        when (newRole) {
                         UserRole.CUSTOMER -> {}
                         UserRole.RESTAURANT -> navController.navigate(Screen.RestaurantDashboard.route) {
                             popUpTo(Screen.CustomerHome.route) { inclusive = true }
                         }
                         UserRole.CAPTAIN -> navController.navigate(Screen.CaptainDashboard.route) {
                             popUpTo(Screen.CustomerHome.route) { inclusive = true }
+                        }
+                        UserRole.ADMIN -> Unit
                         }
                     }
                 },
@@ -150,14 +159,17 @@ fun DrovaNavHost(
             RestaurantDashboardScreen(
                 restaurantViewModel = restaurantViewModel,
                 onRoleSwitch = { newRole ->
-                    authViewModel.quickSwitchRole(newRole)
-                    when (newRole) {
+                    if (BuildConfig.DEBUG) {
+                        authViewModel.quickSwitchRole(newRole)
+                        when (newRole) {
                         UserRole.RESTAURANT -> {}
                         UserRole.CUSTOMER -> navController.navigate(Screen.CustomerHome.route) {
                             popUpTo(Screen.RestaurantDashboard.route) { inclusive = true }
                         }
                         UserRole.CAPTAIN -> navController.navigate(Screen.CaptainDashboard.route) {
                             popUpTo(Screen.RestaurantDashboard.route) { inclusive = true }
+                        }
+                        UserRole.ADMIN -> Unit
                         }
                     }
                 },
@@ -174,8 +186,9 @@ fun DrovaNavHost(
             CaptainDashboardScreen(
                 captainViewModel = captainViewModel,
                 onRoleSwitch = { newRole ->
-                    authViewModel.quickSwitchRole(newRole)
-                    when (newRole) {
+                    if (BuildConfig.DEBUG) {
+                        authViewModel.quickSwitchRole(newRole)
+                        when (newRole) {
                         UserRole.CAPTAIN -> {}
                         UserRole.CUSTOMER -> navController.navigate(Screen.CustomerHome.route) {
                             popUpTo(Screen.CaptainDashboard.route) { inclusive = true }
@@ -183,8 +196,23 @@ fun DrovaNavHost(
                         UserRole.RESTAURANT -> navController.navigate(Screen.RestaurantDashboard.route) {
                             popUpTo(Screen.CaptainDashboard.route) { inclusive = true }
                         }
+                        UserRole.ADMIN -> Unit
+                        }
                     }
                 },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.AdminDashboard.route) {
+            val adminViewModel: AdminViewModel = viewModel()
+            AdminDashboardScreen(
+                viewModel = adminViewModel,
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {

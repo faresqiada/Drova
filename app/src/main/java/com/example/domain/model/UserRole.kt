@@ -27,5 +27,12 @@ enum class UserRole(
         subtitleAr = "اختر بين نظام الورديات أو العمل الحر وحقق دخلك بثقة",
         subtitleEn = "Earn flexibly with Shift Mode or Free Mode delivery",
         tag = "EARN_FLEXIBLY"
+    ),
+    ADMIN(
+        titleAr = "مدير النظام",
+        titleEn = "System Administrator",
+        subtitleAr = "إدارة عمليات DROVA المصرح بها",
+        subtitleEn = "Authorized DROVA operations",
+        tag = "ADMIN_ONLY"
     )
 }
