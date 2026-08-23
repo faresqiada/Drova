@@ -2,6 +2,7 @@ package com.example
 
 import androidx.test.core.app.ApplicationProvider
 import com.example.core.di.ServiceLocator
+import com.google.firebase.FirebaseApp
 import com.example.core.network.safeApiCall
 import com.example.core.result.DrovaError
 import com.example.core.result.DrovaResult
@@ -31,7 +32,9 @@ class BackendIntegrationTest {
 
     @Before
     fun setUpServiceLocator() {
-        ServiceLocator.initialize(ApplicationProvider.getApplicationContext())
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        FirebaseApp.initializeApp(context)
+        ServiceLocator.initialize(context)
     }
 
     private val moshi: Moshi = Moshi.Builder()
