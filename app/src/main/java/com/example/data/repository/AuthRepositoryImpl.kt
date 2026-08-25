@@ -50,7 +50,10 @@ class AuthRepositoryImpl(
      * Resolve authorization exclusively from Firestore /users/{FirebaseUID}.
      * A missing or unknown role is an authentication error, never a Customer fallback.
      */
-    private suspend fun completeVerifiedFirebaseUser(firebaseUser: FirebaseUser): AuthResult {
+    private suspend fun completeVerifiedFirebaseUser(
+        firebaseUser: FirebaseUser,
+        autoProvisionCustomer: Boolean = false
+    ): AuthResult {
         return try {
             val tokenResult = firebaseUser.getIdToken(false).await()
                 ?: return AuthResult.Error(
@@ -63,11 +66,18 @@ class AuthRepositoryImpl(
                     messageEn = "Could not obtain a valid Firebase token."
                 )
 
-            val document = FirebaseFirestore.getInstance()
+            val userDocument = FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(firebaseUser.uid)
-                .get()
-                .await()
+            var document = userDocument.get().await()
+
+            if (!document.exists() && autoProvisionCustomer) {
+                val profile = hashMapOf<String, Any>("role" to "CUSTOMER")
+                firebaseUser.email?.takeIf { it.isNotBlank() }?.let { profile["email"] = it }
+                firebaseUser.displayName?.takeIf { it.isNotBlank() }?.let { profile["full_name"] = it }
+                userDocument.set(profile).await()
+                document = userDocument.get().await()
+            }
 
             if (!document.exists()) {
                 return AuthResult.Error(
@@ -137,7 +147,7 @@ class AuthRepositoryImpl(
             )
         }
 
-        return completeVerifiedFirebaseUser(firebaseUser)
+        return completeVerifiedFirebaseUser(firebaseUser, autoProvisionCustomer = true)
     }
 
     override suspend fun completePhoneSignIn(firebaseUser: FirebaseUser): AuthResult {

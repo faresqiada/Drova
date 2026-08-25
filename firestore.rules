@@ -179,7 +179,15 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow create: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.resource.data.role == 'CUSTOMER'
+        && request.resource.data.keys().hasOnly(['role', 'email', 'full_name'])
+        && (!request.resource.data.keys().hasAny(['email'])
+          || request.resource.data.email == request.auth.token.email)
+        && (!request.resource.data.keys().hasAny(['full_name'])
+          || request.resource.data.full_name is string);
       allow update: if isAdmin() || (signedIn() && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName', 'phone', 'photoUrl', 'updatedAt'
