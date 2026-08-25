@@ -1,11 +1,11 @@
 package com.example.data.repository
 
 import android.app.Activity
-import com.example.BuildConfig
 import com.example.core.result.DrovaResult
 import com.example.data.auth.FirebaseGoogleSignInManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
 import com.example.data.auth.GoogleSignInException
 import com.example.data.local.source.SessionManager
 import com.example.data.remote.dto.*
@@ -18,7 +18,6 @@ import com.example.domain.repository.AuthResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
-import java.util.Locale
 
 class AuthRepositoryImpl(
     private val sessionManager: SessionManager = SessionManager(),
@@ -47,9 +46,8 @@ class AuthRepositoryImpl(
     }
 
     /**
-     * Resolve the post-authentication role from the authenticated legacy API first.
-     * Firebase claims remain the secure fallback when the legacy profile endpoint is unavailable.
-     * The selected role in the pre-login UI is never trusted as an authorization source.
+     * Resolve authorization exclusively from Firestore /users/{FirebaseUID}.
+     * A missing or unknown role is an authentication error, never a Customer fallback.
      */
     private suspend fun completeVerifiedFirebaseUser(firebaseUser: FirebaseUser): AuthResult {
         return try {
@@ -64,54 +62,66 @@ class AuthRepositoryImpl(
                     messageEn = "Could not obtain a valid Firebase token."
                 )
 
-            sessionManager.setFirebaseUid(firebaseUser.uid)
-            sessionManager.setAuthToken(idToken)
+            val document = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(firebaseUser.uid)
+                .get()
+                .await()
 
-            // The old API is the source of truth for restaurant/captain/customer profiles
-            // when it accepts the Firebase bearer token. Never synthesize an elevated role.
-            remoteDataSource?.let { remote ->
-                when (val profileResult = remote.getCurrentUserProfile()) {
-                    is DrovaResult.Success -> {
-                        val profileUser = profileResult.data.toDomain()
-                        if (profileUser.role == UserRole.ADMIN && !hasAdminClaim()) {
-                            return AuthResult.Error(
-                                messageAr = "لا يمكن فتح جلسة Admin بدون Firebase custom claim.",
-                                messageEn = "An Admin session requires a verified Firebase custom claim."
-                            )
-                        }
-                        sessionManager.setCurrentUser(profileUser)
-                        return AuthResult.Success(profileUser)
-                    }
-                    is DrovaResult.Error, DrovaResult.Loading -> Unit
-                }
+            if (!document.exists()) {
+                return AuthResult.Error(
+                    messageAr = "لا يوجد ملف مستخدم موثق لهذا الحساب في DROVA.",
+                    messageEn = "No verified DROVA user profile exists for this account."
+                )
             }
 
-            val isAdminClaim = tokenResult.claims["admin"] == true
-            val claimedRole = if (isAdminClaim) {
-                UserRole.ADMIN
-            } else {
-                (tokenResult.claims["role"] as? String)
-                    ?.uppercase(Locale.ROOT)
-                    ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
+            fun text(vararg keys: String): String? = keys.asSequence()
+                .mapNotNull { key -> document.getString(key) }
+                .firstOrNull { it.isNotBlank() }
+
+            val roleValue = text("role")?.trim()?.uppercase()
+            val role = when (roleValue) {
+                "CUSTOMER" -> UserRole.CUSTOMER
+                "CAPTAIN" -> UserRole.CAPTAIN
+                "RESTAURANT" -> UserRole.RESTAURANT
+                "ADMIN" -> UserRole.ADMIN
+                else -> return AuthResult.Error(
+                    messageAr = "دور الحساب غير معروف أو غير موثق في Firestore.",
+                    messageEn = "The account role is missing or not recognized in Firestore."
+                )
             }
-            val role = claimedRole ?: UserRole.CUSTOMER
+
             val user = User(
                 id = firebaseUser.uid,
-                fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() }
+                fullName = text("full_name", "fullName")
+                    ?: firebaseUser.displayName?.takeIf { it.isNotBlank() }
                     ?: firebaseUser.email?.substringBefore("@")?.ifBlank { null }
                     ?: "DROVA User",
-                phone = firebaseUser.phoneNumber.orEmpty(),
-                email = firebaseUser.email.orEmpty(),
+                phone = text("phone") ?: firebaseUser.phoneNumber.orEmpty(),
+                email = text("email") ?: firebaseUser.email.orEmpty(),
                 role = role,
-                city = "القاهرة",
-                district = "المعادي"
+                city = text("city") ?: "القاهرة",
+                district = text("district") ?: "المعادي",
+                businessName = text("business_name", "businessName"),
+                commercialRegister = text("commercial_register", "commercialRegister"),
+                captainMode = when (text("captain_mode", "captainMode")?.uppercase()) {
+                    "SHIFT_MODE" -> CaptainMode.SHIFT_MODE
+                    else -> CaptainMode.FREE_MODE
+                },
+                isOnline = document.getBoolean("is_online")
+                    ?: document.getBoolean("isOnline")
+                    ?: true,
+                vehicleType = text("vehicle_type", "vehicleType") ?: "دراجة نارية (موتوسيكل)"
             )
+
+            sessionManager.setFirebaseUid(firebaseUser.uid)
+            sessionManager.setAuthToken(idToken)
             sessionManager.setCurrentUser(user)
             AuthResult.Success(user)
         } catch (_: Exception) {
             AuthResult.Error(
-                messageAr = "تعذر إكمال جلسة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
-                messageEn = "Could not complete the Firebase session. Check your internet connection and try again."
+                messageAr = "تعذر قراءة ملف الدور من Firestore. لا يمكن فتح لوحة غير موثقة.",
+                messageEn = "Could not read the role profile from Firestore. An unverified dashboard cannot be opened."
             )
         }
     }
@@ -148,7 +158,24 @@ class AuthRepositoryImpl(
             )
         }
 
-        // Try Remote Auth first if available
+        // Email accounts authenticate with Firebase first; role is resolved from Firestore by UID.
+        if (trimmed.contains("@")) {
+            try {
+                val firebaseUser = FirebaseAuth.getInstance()
+                    .signInWithEmailAndPassword(trimmed, pinOrPassword)
+                    .await()
+                    .user
+                    ?: return AuthResult.Error(
+                        messageAr = "تعذر العثور على حساب Firebase.",
+                        messageEn = "Firebase account was not found."
+                    )
+                return completeVerifiedFirebaseUser(firebaseUser)
+            } catch (_: Exception) {
+                // A legacy server account may still authenticate through the old API below.
+            }
+        }
+
+        // Non-email legacy credentials may still authenticate through the old API.
         remoteDataSource?.let { remote ->
             when (val remoteResult = remote.login(LoginRequestDto(phoneOrEmail = trimmed, password = pinOrPassword, role = selectedRole.value.name))) {
                 is DrovaResult.Success -> {
