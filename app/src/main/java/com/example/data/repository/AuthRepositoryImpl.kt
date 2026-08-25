@@ -192,13 +192,14 @@ class AuthRepositoryImpl(
 
     override suspend fun login(phoneOrEmail: String, pinOrPassword: String): AuthResult {
         val trimmed = phoneOrEmail.trim()
+        val normalizedPassword = pinOrPassword.trim()
         if (trimmed.isEmpty()) {
             return AuthResult.Error(
                 messageAr = "يرجى إدخال رقم الهاتف أو البريد الإلكتروني",
                 messageEn = "Please enter your phone number or email"
             )
         }
-        if (pinOrPassword.length < 4) {
+        if (normalizedPassword.length < 4) {
             return AuthResult.Error(
                 messageAr = "كلمة المرور يجب أن لا تقل عن 4 رموز",
                 messageEn = "Password must be at least 4 characters"
@@ -209,7 +210,7 @@ class AuthRepositoryImpl(
         if (trimmed.contains("@")) {
             try {
                 val firebaseUser = FirebaseAuth.getInstance()
-                    .signInWithEmailAndPassword(trimmed, pinOrPassword)
+                    .signInWithEmailAndPassword(trimmed, normalizedPassword)
                     .await()
                     .user
                     ?: return AuthResult.Error(
