@@ -1,6 +1,6 @@
 package com.example.presentation.auth
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -22,7 +22,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -54,7 +53,7 @@ fun PhoneOtpScreen(
     modifier: Modifier = Modifier
 ) {
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     val uiState by authViewModel.uiState.collectAsState()
     var phone by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }

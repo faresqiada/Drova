@@ -1,6 +1,8 @@
 package com.example.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,6 +25,7 @@ import com.example.presentation.customer.CustomerHomeScreen
 import com.example.presentation.customer.CustomerViewModel
 import com.example.presentation.restaurant.RestaurantDashboardScreen
 import com.example.presentation.restaurant.RestaurantViewModel
+import com.example.presentation.support.ContactUsScreen
 import com.example.presentation.roleselection.RoleSelectionScreen
 import com.example.presentation.splash.SplashScreen
 import com.example.presentation.welcome.WelcomeScreen
@@ -36,6 +39,8 @@ fun DrovaNavHost(
     restaurantViewModel: RestaurantViewModel = viewModel(),
     captainViewModel: CaptainViewModel = viewModel()
 ) {
+    val selectedRole by authViewModel.selectedRole.collectAsState()
+
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route,
@@ -64,7 +69,7 @@ fun DrovaNavHost(
 
         composable(Screen.RoleSelection.route) {
             RoleSelectionScreen(
-                currentSelectedRole = authViewModel.selectedRole.value,
+                currentSelectedRole = selectedRole,
                 onRoleSelected = { role ->
                     authViewModel.selectRole(role)
                 },
@@ -124,6 +129,10 @@ fun DrovaNavHost(
             )
         }
 
+        composable(Screen.ContactUs.route) {
+            ContactUsScreen(onBackClick = { navController.popBackStack() })
+        }
+
         composable(Screen.Register.route) {
             RegisterScreen(
                 authViewModel = authViewModel,
@@ -154,6 +163,7 @@ fun DrovaNavHost(
             CustomerHomeScreen(
                 customerViewModel = customerViewModel,
                 onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
+                onContactUs = { navController.navigate(Screen.ContactUs.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -167,6 +177,7 @@ fun DrovaNavHost(
             RestaurantDashboardScreen(
                 restaurantViewModel = restaurantViewModel,
                 onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
+                onContactUs = { navController.navigate(Screen.ContactUs.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {

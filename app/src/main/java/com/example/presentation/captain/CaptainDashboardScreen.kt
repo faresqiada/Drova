@@ -25,6 +25,7 @@ import com.example.presentation.captain.home.CaptainHomeTab
 import com.example.presentation.captain.modes.CaptainModesTab
 import com.example.presentation.captain.notifications.CaptainNotificationDialog
 import com.example.presentation.captain.profile.CaptainProfileTab
+import com.example.presentation.captain.radio.CaptainRadioTab
 import com.example.presentation.captain.wallet.CaptainWalletTab
 import com.example.ui.theme.*
 
@@ -236,6 +237,9 @@ fun CaptainDashboardScreen(
                 CaptainMainTab.ACTIVE_TRIP -> {
                     CaptainActiveTripTab(captainViewModel = captainViewModel)
                 }
+                CaptainMainTab.RADIO -> {
+                    CaptainRadioTab(captainViewModel = captainViewModel)
+                }
                 CaptainMainTab.MODES -> {
                     CaptainModesTab(captainViewModel = captainViewModel)
                 }
@@ -268,6 +272,7 @@ private fun getCaptainTabIcon(tab: CaptainMainTab, isSelected: Boolean): ImageVe
     return when (tab) {
         CaptainMainTab.HOME -> if (isSelected) Icons.Default.Home else Icons.Outlined.Home
         CaptainMainTab.ACTIVE_TRIP -> if (isSelected) Icons.Default.DirectionsRun else Icons.Outlined.DirectionsRun
+        CaptainMainTab.RADIO -> if (isSelected) Icons.Default.Radio else Icons.Outlined.Radio
         CaptainMainTab.MODES -> if (isSelected) Icons.Default.Speed else Icons.Outlined.Speed
         CaptainMainTab.WALLET -> if (isSelected) Icons.Default.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet
         CaptainMainTab.PROFILE -> if (isSelected) Icons.Default.Person else Icons.Outlined.Person

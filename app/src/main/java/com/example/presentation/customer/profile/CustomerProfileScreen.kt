@@ -31,6 +31,7 @@ fun CustomerProfileScreen(
     user: User?,
     viewModel: CustomerViewModel,
     onSwitchRole: (UserRole) -> Unit,
+    onContactUs: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -268,6 +269,34 @@ fun CustomerProfileScreen(
                     HorizontalDivider(color = DrovaBorder, thickness = 0.5.dp)
                     Spacer(modifier = Modifier.height(6.dp))
 
+                    // Contact Us Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onContactUs)
+                            .padding(vertical = 8.dp)
+                            .testTag("profile_contact_us_btn"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContactSupport,
+                            contentDescription = null,
+                            tint = DrovaPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAr) "تواصل معنا" else "Contact Us",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = DrovaTextPrimary
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = DrovaBorder, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     // Notifications Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -300,30 +329,6 @@ fun CustomerProfileScreen(
                             )
                         )
                     }
-                }
-            }
-        }
-
-        // Quick Role Switcher (For testing/evaluating other modules)
-        item {
-            DrovaSectionContainer(
-                title = if (isAr) "التبديل بين أدوار النظام (للاختبار والتقييم)" else "Switch System Roles (Evaluation)",
-                style = DrovaSurfaceStyle.FLAT
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RoleSwitchButton(
-                        title = if (isAr) "بوابة المطعم الشريك" else "Restaurant Partner Portal",
-                        icon = Icons.Default.Storefront,
-                        onClick = { onSwitchRole(UserRole.RESTAURANT) },
-                        testTag = "switch_role_restaurant"
-                    )
-
-                    RoleSwitchButton(
-                        title = if (isAr) "تطبيق كابتن التوصيل" else "Delivery Captain App",
-                        icon = Icons.Default.TwoWheeler,
-                        onClick = { onSwitchRole(UserRole.CAPTAIN) },
-                        testTag = "switch_role_captain"
-                    )
                 }
             }
         }

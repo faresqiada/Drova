@@ -31,6 +31,7 @@ import com.example.ui.theme.*
 fun RestaurantDashboardScreen(
     restaurantViewModel: RestaurantViewModel,
     onRoleSwitch: (UserRole) -> Unit,
+    onContactUs: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -210,6 +211,7 @@ fun RestaurantDashboardScreen(
                     RestaurantProfileTab(
                         restaurantViewModel = restaurantViewModel,
                         onRoleSwitch = onRoleSwitch,
+                        onContactUs = onContactUs,
                         onLogout = onLogout
                     )
                 }

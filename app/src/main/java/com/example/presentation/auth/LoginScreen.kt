@@ -1,7 +1,6 @@
 package com.example.presentation.auth
 
-import android.app.Activity
-
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -23,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -50,7 +48,7 @@ fun LoginScreen(
     val uiState by authViewModel.uiState.collectAsState()
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
     val focusManager = LocalFocusManager.current
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
 
     var phoneOrEmail by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

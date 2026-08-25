@@ -29,6 +29,7 @@ import com.example.ui.theme.*
 fun RestaurantProfileTab(
     restaurantViewModel: RestaurantViewModel,
     onRoleSwitch: (UserRole) -> Unit,
+    onContactUs: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -37,6 +38,10 @@ fun RestaurantProfileTab(
     val currentUser by restaurantViewModel.currentUser.collectAsState()
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var deliveryOnly by remember { mutableStateOf(false) }
+    var showCaptainRequestDialog by remember { mutableStateOf(false) }
+    var captainRequestCount by remember { mutableStateOf("1") }
+    var captainRequestNotes by remember { mutableStateOf("") }
 
     if (showEditProfileDialog && restaurant != null) {
         EditStoreProfileDialog(
@@ -253,7 +258,75 @@ fun RestaurantProfileTab(
             }
         }
 
-        // 3. Language & Settings
+        // 3. Delivery preference and operational services
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = DrovaSurface,
+                border = BorderStroke(1.dp, DrovaBorder)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = if (isAr) "خدمات التشغيل والتسويق" else "Operations & Marketing Services",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = DrovaTextPrimary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isAr) "اطلب دليفري فقط" else "Delivery only",
+                                fontWeight = FontWeight.SemiBold,
+                                color = DrovaTextPrimary
+                            )
+                            Text(
+                                text = if (isAr) "استخدم DROVA للتوصيل فقط حسب إعدادات التشغيل." else "Use DROVA for delivery-only operations.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DrovaTextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = deliveryOnly,
+                            onCheckedChange = { deliveryOnly = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = DrovaPrimary)
+                        )
+                    }
+                    HorizontalDivider(color = DrovaBorder, thickness = 0.5.dp)
+                    DrovaOutlinedButton(
+                        text = if (isAr) "طلب تعيين مناديب ثابتة" else "Request dedicated captains",
+                        onClick = { showCaptainRequestDialog = true },
+                        leadingIcon = Icons.Default.GroupAdd,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "restaurant_dedicated_captains_btn"
+                    )
+                    Text(
+                        text = if (isAr) "التسويق وصناعة المحتوى والإعلانات" else "Marketing, content & advertising",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = DrovaTextPrimary
+                    )
+                    listOf(
+                        if (isAr) "طلب تسويق" else "Marketing request",
+                        if (isAr) "صناعة محتوى" else "Content creation",
+                        if (isAr) "تصوير وإنتاج محتوى" else "Content production",
+                        if (isAr) "إعلانات وحملات إعلانية" else "Ads and campaigns"
+                    ).forEach { service ->
+                        DrovaOutlinedButton(
+                            text = service,
+                            onClick = onContactUs,
+                            leadingIcon = Icons.Default.Campaign,
+                            modifier = Modifier.fillMaxWidth(),
+                            testTag = "restaurant_marketing_${service.hashCode()}"
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Language & Settings
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -287,8 +360,9 @@ fun RestaurantProfileTab(
             }
         }
 
-        // 4. Role Switcher for Reviewer
+        // Role switching is intentionally disabled; roles come from verified claims.
         item {
+            if (false) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
@@ -359,6 +433,7 @@ fun RestaurantProfileTab(
                     }
                 }
             }
+            }
         }
 
         // 5. Logout Button
@@ -390,6 +465,44 @@ fun RestaurantProfileTab(
         item {
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showCaptainRequestDialog) {
+        AlertDialog(
+            onDismissRequest = { showCaptainRequestDialog = false },
+            title = { Text(if (isAr) "طلب تعيين مناديب ثابتة" else "Request dedicated captains") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = captainRequestCount,
+                        onValueChange = { captainRequestCount = it.filter(Char::isDigit).take(2) },
+                        label = { Text(if (isAr) "عدد الكباتن" else "Number of captains") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = captainRequestNotes,
+                        onValueChange = { captainRequestNotes = it },
+                        label = { Text(if (isAr) "ملاحظات المطعم" else "Restaurant notes") },
+                        minLines = 3
+                    )
+                    Text(
+                        text = if (isAr) "تم تجهيز الطلب. سيتم إرساله للإدارة عند توفر تكامل الخادم." else "The request is ready and will be sent when server integration is available.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DrovaTextSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCaptainRequestDialog = false }) {
+                    Text(if (isAr) "حفظ الطلب" else "Save request")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCaptainRequestDialog = false }) {
+                    Text(if (isAr) "إلغاء" else "Cancel")
+                }
+            }
+        )
     }
 }
 

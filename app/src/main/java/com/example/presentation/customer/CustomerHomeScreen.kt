@@ -37,6 +37,7 @@ import com.example.ui.theme.*
 fun CustomerHomeScreen(
     customerViewModel: CustomerViewModel,
     onRoleSwitch: (UserRole) -> Unit,
+    onContactUs: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -49,6 +50,8 @@ fun CustomerHomeScreen(
     val cartItemCount by customerViewModel.cartItemCount.collectAsState()
     val cartSubtotal by customerViewModel.cartSubtotalEgp.collectAsState()
     val activeOrders by customerViewModel.activeCustomerOrders.collectAsState()
+    val restaurants by customerViewModel.restaurants.collectAsState()
+    val allOrders by customerViewModel.allOrders.collectAsState()
 
     // Sub-screens state
     val activeRestaurant by customerViewModel.activeRestaurant.collectAsState()
@@ -116,6 +119,7 @@ fun CustomerHomeScreen(
                                 user = currentUser,
                                 viewModel = customerViewModel,
                                 onSwitchRole = onRoleSwitch,
+                                onContactUs = onContactUs,
                                 onLogout = onLogout,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -191,7 +195,7 @@ fun CustomerHomeScreen(
                 }
 
                 is CustomerDestination.RestaurantDetail -> {
-                    val restaurant = activeRestaurant ?: customerViewModel.restaurants.value.find { it.id == dest.restaurantId }
+                    val restaurant = activeRestaurant ?: restaurants.find { it.id == dest.restaurantId }
                     if (restaurant != null) {
                         RestaurantDetailScreen(
                             restaurant = restaurant,
@@ -209,7 +213,7 @@ fun CustomerHomeScreen(
                 }
 
                 is CustomerDestination.OrderTracking -> {
-                    val order = trackingOrder ?: customerViewModel.allOrders.value.find { it.id == dest.orderId }
+                    val order = trackingOrder ?: allOrders.find { it.id == dest.orderId }
                     if (order != null) {
                         OrderTrackingScreen(
                             order = order,
@@ -219,7 +223,7 @@ fun CustomerHomeScreen(
                 }
 
                 is CustomerDestination.OrderDetail -> {
-                    val order = trackingOrder ?: customerViewModel.allOrders.value.find { it.id == dest.orderId }
+                    val order = trackingOrder ?: allOrders.find { it.id == dest.orderId }
                     if (order != null) {
                         OrderDetailScreen(
                             order = order,
