@@ -124,6 +124,22 @@ fun DrovaNavHost(
             ContactUsScreen(onBackClick = { navController.popBackStack() })
         }
 
+        composable(Screen.RestaurantContactUs.route) {
+            ContactUsScreen(
+                titleAr = "تواصل معنا",
+                titleEn = "Contact Us",
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.CaptainContactAdmin.route) {
+            ContactUsScreen(
+                titleAr = "تواصل مع الإدارة",
+                titleEn = "Contact Administration",
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.CustomerFeedback.route) {
             CustomerFeedbackScreen(onBackClick = { navController.popBackStack() })
         }
@@ -168,7 +184,7 @@ fun DrovaNavHost(
             RestaurantDashboardScreen(
                 restaurantViewModel = restaurantViewModel,
                 onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
-                onContactUs = { navController.navigate(Screen.ContactUs.route) },
+                onContactUs = { navController.navigate(Screen.RestaurantContactUs.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -182,6 +198,7 @@ fun DrovaNavHost(
             CaptainDashboardScreen(
                 captainViewModel = captainViewModel,
                 onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
+                onContactAdmin = { navController.navigate(Screen.CaptainContactAdmin.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {

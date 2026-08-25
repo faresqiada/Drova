@@ -40,6 +40,9 @@ fun RestaurantDashboardTab(
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
     val restaurant by restaurantViewModel.restaurantData.collectAsState()
     val activeAlert by restaurantViewModel.activeAlert.collectAsState()
+    var showDeliveryRequestDialog by remember { mutableStateOf(false) }
+    var selectedDeliveryArea by remember { mutableStateOf("6 أكتوبر") }
+    val deliveryAreas = listOf("6 أكتوبر", "الشيخ زايد", "حدائق أكتوبر")
 
     val todayOrdersCount by restaurantViewModel.todayOrdersCount.collectAsState()
     val todaySalesEgp by restaurantViewModel.todaySalesEgp.collectAsState()
@@ -225,7 +228,59 @@ fun RestaurantDashboardTab(
             }
         }
 
-        // 5. Orders Waiting for Confirmation & Preparation
+        // 5. Delivery-only service
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("restaurant_delivery_only_service"),
+                shape = RoundedCornerShape(16.dp),
+                color = DrovaTurquoiseLight,
+                border = BorderStroke(1.dp, DrovaTurquoise.copy(alpha = 0.45f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocalShipping,
+                            contentDescription = null,
+                            tint = DrovaTurquoise,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAr) "اطلب دليفري" else "Request delivery",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = DrovaCharcoal
+                        )
+                    }
+                    Text(
+                        text = if (isAr)
+                            "خدمة مستقلة لطلب التوصيل فقط. حدد نطاق التوصيل الخاص بمطعمك."
+                        else
+                            "A dedicated delivery-only service. Choose your restaurant delivery area.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DrovaTextSecondary
+                    )
+                    Text(
+                        text = if (isAr) "النطاق المحدد: $selectedDeliveryArea" else "Selected area: $selectedDeliveryArea",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = DrovaTextPrimary
+                    )
+                    DrovaOutlinedButton(
+                        text = if (isAr) "تحديد نطاق التوصيل" else "Choose delivery area",
+                        onClick = { showDeliveryRequestDialog = true },
+                        leadingIcon = Icons.Default.LocationOn,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "restaurant_delivery_area_button"
+                    )
+                }
+            }
+        }
+
+        // 6. Orders Waiting for Confirmation & Preparation
         if (pendingOrders.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -317,6 +372,41 @@ fun RestaurantDashboardTab(
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showDeliveryRequestDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeliveryRequestDialog = false },
+            title = { Text(if (isAr) "نطاق خدمة اطلب دليفري" else "Delivery service area") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    deliveryAreas.forEach { area ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedDeliveryArea = area },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedDeliveryArea == area,
+                                onClick = { selectedDeliveryArea = area }
+                            )
+                            Text(area, color = DrovaTextPrimary)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDeliveryRequestDialog = false }) {
+                    Text(if (isAr) "حفظ" else "Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeliveryRequestDialog = false }) {
+                    Text(if (isAr) "إلغاء" else "Cancel")
+                }
+            }
+        )
     }
 }
 

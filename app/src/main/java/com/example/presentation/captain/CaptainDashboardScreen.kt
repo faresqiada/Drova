@@ -34,6 +34,7 @@ import com.example.ui.theme.*
 fun CaptainDashboardScreen(
     onRoleSwitch: (UserRole) -> Unit,
     onLogout: () -> Unit,
+    onContactAdmin: () -> Unit,
     captainViewModel: CaptainViewModel = viewModel()
 ) {
     val isAr = DrovaLanguageManager.currentLanguage == AppLanguage.ARABIC
@@ -250,6 +251,7 @@ fun CaptainDashboardScreen(
                     CaptainProfileTab(
                         captainViewModel = captainViewModel,
                         onRoleSwitch = onRoleSwitch,
+                        onContactAdmin = onContactAdmin,
                         onLogout = onLogout
                     )
                 }

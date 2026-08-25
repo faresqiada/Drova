@@ -32,6 +32,7 @@ import com.example.ui.theme.*
 fun CaptainProfileTab(
     captainViewModel: CaptainViewModel,
     onRoleSwitch: (UserRole) -> Unit,
+    onContactAdmin: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -372,7 +373,35 @@ fun CaptainProfileTab(
             }
         }
 
-        // 6. Logout Button
+        // 6. Contact Administration
+        item {
+            OutlinedButton(
+                onClick = onContactAdmin,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("captain_contact_admin_btn"),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, DrovaTurquoise.copy(alpha = 0.65f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SupportAgent,
+                    contentDescription = null,
+                    tint = DrovaTurquoise,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isAr) "تواصل مع الإدارة" else "Contact Administration",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = DrovaTurquoise
+                    )
+                )
+            }
+        }
+
+        // 7. Logout Button
         item {
             OutlinedButton(
                 onClick = onLogout,

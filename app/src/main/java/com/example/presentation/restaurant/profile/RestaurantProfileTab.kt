@@ -87,7 +87,7 @@ fun RestaurantProfileTab(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = restaurant?.nameAr ?: (currentUser?.businessName ?: "شاورما الريم المعادي"),
+                                text = restaurant?.nameAr ?: (currentUser?.businessName ?: "مطعم DROVA 6 أكتوبر"),
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Black,
                                     color = DrovaTextPrimary,
@@ -128,7 +128,7 @@ fun RestaurantProfileTab(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = restaurant?.addressAr ?: "شارع 9، المعادي، القاهرة",
+                                text = restaurant?.addressAr ?: "محور 26 يوليو، 6 أكتوبر",
                                 style = MaterialTheme.typography.bodySmall.copy(color = DrovaTextPrimary)
                             )
                         }
@@ -215,7 +215,7 @@ fun RestaurantProfileTab(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "450.00 ج.م / شهرياً • موعد التجديد: ${restaurant?.subscriptionRenewalDate ?: "15 سبتمبر 2026"}",
+                        text = "1000.00 ج.م / شهرياً • موعد التجديد: ${restaurant?.subscriptionRenewalDate ?: "15 سبتمبر 2026"}",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = DrovaTurquoiseHover,
                             fontWeight = FontWeight.SemiBold
@@ -228,7 +228,7 @@ fun RestaurantProfileTab(
 
                     // Tier Included Benefits
                     val benefits = listOf(
-                        "أولوية الظهور للعملاء في نطاق المعادي والقاهرة",
+                        "أولوية الظهور للعملاء في نطاق 6 أكتوبر والشيخ زايد وحدائق أكتوبر",
                         "نسبة عمولة مخفضة 12% على جميع الطلبات",
                         "توزيع وتوجيه تلقائي ذكي لأقرب كباتن DROVA",
                         "لوحة تحكم تشغيلية متقدمة وإشعارات حية فورية"
