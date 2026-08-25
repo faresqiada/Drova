@@ -5,6 +5,7 @@ sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object RoleSelection : Screen("role_selection")
     object Login : Screen("login")
+    object PhoneOtp : Screen("phone_otp")
     object Register : Screen("register")
 
     // Role-specific main entry screens

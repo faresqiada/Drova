@@ -41,6 +41,7 @@ fun LoginScreen(
     authViewModel: AuthViewModel,
     onLoginSuccess: (UserRole) -> Unit,
     onNavigateToRegister: () -> Unit,
+    onOtpClick: () -> Unit,
     onChangeRoleClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -51,8 +52,8 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val activity = LocalContext.current as? Activity
 
-    var phoneOrEmail by remember { mutableStateOf(if (BuildConfig.DEBUG) "01012345678" else "") }
-    var password by remember { mutableStateOf(if (BuildConfig.DEBUG) "123456" else "") }
+    var phoneOrEmail by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
@@ -252,6 +253,14 @@ fun LoginScreen(
                     enabled = isFormValid,
                     trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
                     testTag = "login_submit_btn"
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                DrovaOutlinedButton(
+                    text = if (isAr) "الدخول برمز OTP" else "Sign in with OTP",
+                    onClick = onOtpClick,
+                    enabled = uiState !is AuthUiState.Loading,
+                    leadingIcon = Icons.Default.Phone,
+                    testTag = "login_otp_btn"
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 DrovaOutlinedButton(

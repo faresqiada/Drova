@@ -10,6 +10,7 @@ import com.example.domain.model.User
 import com.example.domain.model.UserRole
 import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.AuthResult
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +47,16 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.signInWithGoogle(activity)) {
+                is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
+            }
+        }
+    }
+
+    fun completePhoneSignIn(firebaseUser: FirebaseUser) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            when (val result = authRepository.completePhoneSignIn(firebaseUser)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }

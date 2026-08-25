@@ -15,6 +15,7 @@ import com.example.presentation.auth.AuthViewModel
 import com.example.presentation.admin.AdminDashboardScreen
 import com.example.presentation.admin.AdminViewModel
 import com.example.presentation.auth.LoginScreen
+import com.example.presentation.auth.PhoneOtpScreen
 import com.example.presentation.auth.RegisterScreen
 import com.example.presentation.captain.CaptainDashboardScreen
 import com.example.presentation.captain.CaptainViewModel
@@ -93,12 +94,33 @@ fun DrovaNavHost(
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 },
+                onOtpClick = {
+                    navController.navigate(Screen.PhoneOtp.route)
+                },
                 onChangeRoleClick = {
                     navController.navigate(Screen.RoleSelection.route)
                 },
                 onBackClick = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(Screen.PhoneOtp.route) {
+            PhoneOtpScreen(
+                authViewModel = authViewModel,
+                onLoginSuccess = { role ->
+                    val destination = when (role) {
+                        UserRole.CUSTOMER -> Screen.CustomerHome.route
+                        UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
+                        UserRole.CAPTAIN -> Screen.CaptainDashboard.route
+                        UserRole.ADMIN -> Screen.AdminDashboard.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -131,21 +153,7 @@ fun DrovaNavHost(
         composable(Screen.CustomerHome.route) {
             CustomerHomeScreen(
                 customerViewModel = customerViewModel,
-                onRoleSwitch = { newRole ->
-                    if (BuildConfig.DEBUG) {
-                        authViewModel.quickSwitchRole(newRole)
-                        when (newRole) {
-                        UserRole.CUSTOMER -> {}
-                        UserRole.RESTAURANT -> navController.navigate(Screen.RestaurantDashboard.route) {
-                            popUpTo(Screen.CustomerHome.route) { inclusive = true }
-                        }
-                        UserRole.CAPTAIN -> navController.navigate(Screen.CaptainDashboard.route) {
-                            popUpTo(Screen.CustomerHome.route) { inclusive = true }
-                        }
-                        UserRole.ADMIN -> Unit
-                        }
-                    }
-                },
+                onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -158,21 +166,7 @@ fun DrovaNavHost(
         composable(Screen.RestaurantDashboard.route) {
             RestaurantDashboardScreen(
                 restaurantViewModel = restaurantViewModel,
-                onRoleSwitch = { newRole ->
-                    if (BuildConfig.DEBUG) {
-                        authViewModel.quickSwitchRole(newRole)
-                        when (newRole) {
-                        UserRole.RESTAURANT -> {}
-                        UserRole.CUSTOMER -> navController.navigate(Screen.CustomerHome.route) {
-                            popUpTo(Screen.RestaurantDashboard.route) { inclusive = true }
-                        }
-                        UserRole.CAPTAIN -> navController.navigate(Screen.CaptainDashboard.route) {
-                            popUpTo(Screen.RestaurantDashboard.route) { inclusive = true }
-                        }
-                        UserRole.ADMIN -> Unit
-                        }
-                    }
-                },
+                onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {
@@ -185,21 +179,7 @@ fun DrovaNavHost(
         composable(Screen.CaptainDashboard.route) {
             CaptainDashboardScreen(
                 captainViewModel = captainViewModel,
-                onRoleSwitch = { newRole ->
-                    if (BuildConfig.DEBUG) {
-                        authViewModel.quickSwitchRole(newRole)
-                        when (newRole) {
-                        UserRole.CAPTAIN -> {}
-                        UserRole.CUSTOMER -> navController.navigate(Screen.CustomerHome.route) {
-                            popUpTo(Screen.CaptainDashboard.route) { inclusive = true }
-                        }
-                        UserRole.RESTAURANT -> navController.navigate(Screen.RestaurantDashboard.route) {
-                            popUpTo(Screen.CaptainDashboard.route) { inclusive = true }
-                        }
-                        UserRole.ADMIN -> Unit
-                        }
-                    }
-                },
+                onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {

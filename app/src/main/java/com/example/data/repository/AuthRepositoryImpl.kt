@@ -5,6 +5,7 @@ import com.example.BuildConfig
 import com.example.core.result.DrovaResult
 import com.example.data.auth.FirebaseGoogleSignInManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.example.data.auth.GoogleSignInException
 import com.example.data.local.source.SessionManager
 import com.example.data.remote.dto.*
@@ -41,45 +42,8 @@ class AuthRepositoryImpl(
     }
 
     override fun quickSwitchRole(role: UserRole) {
-        if (!BuildConfig.DEBUG || role == UserRole.ADMIN) return
-        sessionManager.setSelectedRole(role)
-        val user = when (role) {
-            UserRole.CUSTOMER -> User(
-                id = "cust_1",
-                fullName = "أحمد مصطفى",
-                phone = "+201012345678",
-                email = "ahmed@drova.eg",
-                role = UserRole.CUSTOMER,
-                city = "القاهرة",
-                district = "المعادي"
-            )
-            UserRole.RESTAURANT -> User(
-                id = "rest_1",
-                fullName = "إدارة شاورما الريم",
-                phone = "+201023456789",
-                email = "partner@alreem.eg",
-                role = UserRole.RESTAURANT,
-                city = "القاهرة",
-                district = "المعادي",
-                businessName = "شاورما الريم المعادي",
-                commercialRegister = "CR-98421-EG"
-            )
-            UserRole.CAPTAIN -> User(
-                id = "cap_1",
-                fullName = "محمود عادل",
-                phone = "+201198765432",
-                email = "mahmoud.captain@drova.eg",
-                role = UserRole.CAPTAIN,
-                city = "القاهرة",
-                district = "المعادي / التجمع",
-                captainMode = CaptainMode.SHIFT_MODE,
-                isOnline = true,
-                vehicleType = "دراجة نارية (موتوسيكل)"
-            )
-            UserRole.ADMIN -> return
-        }
-        sessionManager.setCurrentUser(user)
-        sessionManager.setAuthToken("token_demo_${role.name.lowercase()}")
+        // Role switching must come from a verified authenticated session, never from demo data.
+        return
     }
 
     override suspend fun signInWithGoogle(activity: Activity): AuthResult {
@@ -111,13 +75,8 @@ class AuthRepositoryImpl(
                     ?.uppercase(Locale.ROOT)
                     ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
             }
-            if (!BuildConfig.DEBUG && claimedRole == null) {
-                return AuthResult.Error(
-                    messageAr = "جلسة Firebase لا تحتوي على صلاحية تشغيلية موثقة.",
-                    messageEn = "The Firebase session has no verified operational role claim."
-                )
-            }
-            val role = claimedRole ?: selectedRole.value
+            // Verified Firebase users default to customer access; elevated roles require claims.
+            val role = claimedRole ?: UserRole.CUSTOMER
             val user = User(
                 id = firebaseUser.uid,
                 fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() }
@@ -137,6 +96,49 @@ class AuthRepositoryImpl(
             AuthResult.Error(
                 messageAr = "تعذر إكمال جلسة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
                 messageEn = "Could not complete the Firebase session. Check your internet connection and try again."
+            )
+        }
+    }
+
+    override suspend fun completePhoneSignIn(firebaseUser: FirebaseUser): AuthResult {
+        return try {
+            val tokenResult = firebaseUser.getIdToken(false).await()
+                ?: return AuthResult.Error(
+                    messageAr = "تعذر الحصول على جلسة Firebase صالحة.",
+                    messageEn = "Could not obtain a valid Firebase session."
+                )
+            val idToken = tokenResult.token
+                ?: return AuthResult.Error(
+                    messageAr = "تعذر الحصول على رمز Firebase صالح.",
+                    messageEn = "Could not obtain a valid Firebase token."
+                )
+            val isAdminClaim = tokenResult.claims["admin"] == true
+            val claimedRole = if (isAdminClaim) {
+                UserRole.ADMIN
+            } else {
+                (tokenResult.claims["role"] as? String)
+                    ?.uppercase(Locale.ROOT)
+                    ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
+            }
+            // Verified Firebase users default to customer access; elevated roles require claims.
+            val role = claimedRole ?: UserRole.CUSTOMER
+            val user = User(
+                id = firebaseUser.uid,
+                fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() } ?: "DROVA User",
+                phone = firebaseUser.phoneNumber.orEmpty(),
+                email = firebaseUser.email.orEmpty(),
+                role = role,
+                city = "القاهرة",
+                district = "المعادي"
+            )
+            sessionManager.setFirebaseUid(firebaseUser.uid)
+            sessionManager.setAuthToken(idToken)
+            sessionManager.setCurrentUser(user)
+            AuthResult.Success(user)
+        } catch (_: Exception) {
+            AuthResult.Error(
+                messageAr = "تعذر إكمال تسجيل الدخول برقم الهاتف.",
+                messageEn = "Could not complete phone sign-in."
             )
         }
     }
@@ -183,64 +185,10 @@ class AuthRepositoryImpl(
             }
         }
 
-        if (!BuildConfig.DEBUG) {
-            return AuthResult.Error(
-                messageAr = "تعذر تسجيل الدخول من الخادم. لا يمكن استخدام تسجيل دخول تجريبي في نسخة الإنتاج.",
-                messageEn = "Server authentication failed. Demo login is disabled in production."
-            )
-        }
-
-        delay(300) // Smooth UX
-
-        val role = sessionManager.selectedRole.value
-        if (role == UserRole.ADMIN) {
-            return AuthResult.Error(
-                messageAr = "لا يمكن إنشاء جلسة Admin من تسجيل الدخول التجريبي.",
-                messageEn = "An Admin session cannot be created by demo login."
-            )
-        }
-        val user = when (role) {
-            UserRole.CUSTOMER -> User(
-                id = "cust_1",
-                fullName = "أحمد مصطفى",
-                phone = if (trimmed.startsWith("+")) trimmed else "+20$trimmed",
-                email = if (trimmed.contains("@")) trimmed else "ahmed.customer@drova.eg",
-                role = UserRole.CUSTOMER,
-                city = "القاهرة",
-                district = "المعادي"
-            )
-            UserRole.RESTAURANT -> User(
-                id = "rest_1",
-                fullName = "مدير شاورما الريم",
-                phone = if (trimmed.startsWith("+")) trimmed else "+20$trimmed",
-                email = if (trimmed.contains("@")) trimmed else "manager@alreem.eg",
-                role = UserRole.RESTAURANT,
-                city = "القاهرة",
-                district = "المعادي",
-                businessName = "شاورما الريم المعادي",
-                commercialRegister = "CR-98421-EG"
-            )
-            UserRole.CAPTAIN -> User(
-                id = "cap_1",
-                fullName = "محمود عادل",
-                phone = if (trimmed.startsWith("+")) trimmed else "+20$trimmed",
-                email = "captain.mahmoud@drova.eg",
-                role = UserRole.CAPTAIN,
-                city = "القاهرة",
-                district = "المعادي / التجمع",
-                captainMode = CaptainMode.SHIFT_MODE,
-                isOnline = true,
-                vehicleType = "دراجة نارية (موتوسيكل)"
-            )
-            UserRole.ADMIN -> return AuthResult.Error(
-                messageAr = "لا يمكن إنشاء جلسة Admin من تسجيل الدخول التجريبي.",
-                messageEn = "An Admin session cannot be created by demo login."
-            )
-        }
-
-        sessionManager.setCurrentUser(user)
-        sessionManager.setAuthToken("token_session_${System.currentTimeMillis()}")
-        return AuthResult.Success(user)
+        return AuthResult.Error(
+            messageAr = "تعذر تسجيل الدخول من الخادم. استخدم OTP أو تحقق من بيانات الحساب.",
+            messageEn = "Server authentication failed. Use OTP or verify the account credentials."
+        )
     }
 
     override suspend fun registerCustomer(
@@ -270,25 +218,10 @@ class AuthRepositoryImpl(
             }
         }
 
-        if (!BuildConfig.DEBUG) {
-            return AuthResult.Error(
-                messageAr = "تعذر إنشاء الحساب من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
-                messageEn = "Server registration failed. Demo registration is disabled in production."
-            )
-        }
-
-        delay(300)
-        val user = User(
-            id = "cust_${System.currentTimeMillis() % 10000}",
-            fullName = fullName.trim(),
-            phone = phone.trim(),
-            role = UserRole.CUSTOMER,
-            city = city.ifBlank { "القاهرة" },
-            district = district.ifBlank { "المعادي" }
+        return AuthResult.Error(
+            messageAr = "تعذر إنشاء الحساب من الخادم. لا يمكن استخدام تسجيل تجريبي.",
+            messageEn = "Server registration failed. Demo registration is disabled."
         )
-        sessionManager.setCurrentUser(user)
-        sessionManager.setAuthToken("token_customer_${System.currentTimeMillis()}")
-        return AuthResult.Success(user)
     }
 
     override suspend fun registerRestaurant(
@@ -325,26 +258,10 @@ class AuthRepositoryImpl(
             }
         }
 
-        if (!BuildConfig.DEBUG) {
-            return AuthResult.Error(
-                messageAr = "تعذر إنشاء حساب المطعم من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
-                messageEn = "Server restaurant registration failed. Demo registration is disabled in production."
-            )
-        }
-
-        delay(300)
-        val user = User(
-            id = "rest_${System.currentTimeMillis() % 10000}",
-            fullName = managerName.trim(),
-            phone = phone.trim(),
-            role = UserRole.RESTAURANT,
-            businessName = businessName.trim(),
-            commercialRegister = commercialRegister.trim().ifBlank { "CR-PENDING" },
-            district = address.trim().ifBlank { "القاهرة" }
+        return AuthResult.Error(
+            messageAr = "تعذر إنشاء حساب المطعم من الخادم. لا يمكن استخدام تسجيل تجريبي.",
+            messageEn = "Server restaurant registration failed. Demo registration is disabled."
         )
-        sessionManager.setCurrentUser(user)
-        sessionManager.setAuthToken("token_restaurant_${System.currentTimeMillis()}")
-        return AuthResult.Success(user)
     }
 
     override suspend fun registerCaptain(
@@ -381,26 +298,10 @@ class AuthRepositoryImpl(
             }
         }
 
-        if (!BuildConfig.DEBUG) {
-            return AuthResult.Error(
-                messageAr = "تعذر تسجيل الكابتن من الخادم. التسجيل التجريبي معطل في نسخة الإنتاج.",
-                messageEn = "Server captain registration failed. Demo registration is disabled in production."
-            )
-        }
-
-        delay(300)
-        val user = User(
-            id = "cap_${System.currentTimeMillis() % 10000}",
-            fullName = fullName.trim(),
-            phone = phone.trim(),
-            role = UserRole.CAPTAIN,
-            captainMode = captainMode,
-            vehicleType = vehicleType.ifBlank { "دراجة نارية (موتوسيكل)" },
-            isOnline = true
+        return AuthResult.Error(
+            messageAr = "تعذر تسجيل الكابتن من الخادم. لا يمكن استخدام تسجيل تجريبي.",
+            messageEn = "Server captain registration failed. Demo registration is disabled."
         )
-        sessionManager.setCurrentUser(user)
-        sessionManager.setAuthToken("token_captain_${System.currentTimeMillis()}")
-        return AuthResult.Success(user)
     }
 
     override suspend fun logout() {
