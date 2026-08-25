@@ -13,6 +13,7 @@ data class MenuItemDto(
     @Json(name = "description_ar") val descriptionAr: String = "",
     @Json(name = "price") val price: Double,
     @Json(name = "category") val category: String,
+    @Json(name = "image_url") val imageUrl: String? = null,
     @Json(name = "is_available") val isAvailable: Boolean = true,
     @Json(name = "preparation_time_min") val preparationTimeMin: Int = 15
 )
@@ -31,6 +32,7 @@ data class RestaurantDto(
     @Json(name = "delivery_fee_egp") val deliveryFeeEgp: Double = 20.0,
     @Json(name = "is_open") val isOpen: Boolean = true,
     @Json(name = "address_ar") val addressAr: String,
+    @Json(name = "image_url") val imageUrl: String? = null,
     @Json(name = "phone") val phone: String = "+201000000000",
     @Json(name = "description_ar") val descriptionAr: String = "",
     @Json(name = "opening_hours") val openingHours: String = "11:00 AM - 02:00 AM",
@@ -73,7 +75,8 @@ fun MenuItemDto.toDomain(): MenuItem = MenuItem(
     price = price,
     category = category,
     isAvailable = isAvailable,
-    preparationTimeMin = preparationTimeMin
+    preparationTimeMin = preparationTimeMin,
+    imageUri = imageUrl
 )
 
 fun MenuItem.toDto(): MenuItemDto = MenuItemDto(
@@ -83,6 +86,7 @@ fun MenuItem.toDto(): MenuItemDto = MenuItemDto(
     descriptionAr = descriptionAr,
     price = price,
     category = category,
+    imageUrl = imageUri,
     isAvailable = isAvailable,
     preparationTimeMin = preparationTimeMin
 )
@@ -100,6 +104,7 @@ fun RestaurantDto.toDomain(): Restaurant = Restaurant(
     deliveryFeeEgp = deliveryFeeEgp,
     isOpen = isOpen,
     addressAr = addressAr,
+    imageUrl = imageUrl,
     phone = phone,
     descriptionAr = descriptionAr,
     openingHours = openingHours,
@@ -123,6 +128,7 @@ fun Restaurant.toDto(): RestaurantDto = RestaurantDto(
     deliveryFeeEgp = deliveryFeeEgp,
     isOpen = isOpen,
     addressAr = addressAr,
+    imageUrl = imageUrl,
     phone = phone,
     descriptionAr = descriptionAr,
     openingHours = openingHours,

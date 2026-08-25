@@ -8,7 +8,9 @@ data class MenuItem(
     val price: Double,
     val category: String,
     val isAvailable: Boolean = true,
-    val preparationTimeMin: Int = 15
+    val preparationTimeMin: Int = 15,
+    /** Local/content URI selected by the restaurant; remote upload is not assumed. */
+    val imageUri: String? = null
 )
 
 data class Restaurant(
@@ -24,6 +26,7 @@ data class Restaurant(
     val deliveryFeeEgp: Double,
     val isOpen: Boolean = true,
     val addressAr: String,
+    val imageUrl: String? = null,
     val phone: String = "+20 100 887 9922",
     val descriptionAr: String = "أشهى المأكولات السورية والمشويات على الفحم بتتبيلة الريم الخاصة وخبرة تمتد لأكثر من 15 عاماً",
     val openingHours: String = "11:00 ص - 02:00 ص (يومياً)",

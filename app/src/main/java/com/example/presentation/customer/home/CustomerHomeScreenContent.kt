@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.core.designsystem.*
 import com.example.domain.model.Order
 import com.example.domain.model.Restaurant
@@ -507,6 +508,16 @@ private fun FeaturedRestaurantCard(
         contentPadding = PaddingValues(12.dp)
     ) {
         Column {
+            AsyncImage(
+                model = restaurant.imageUrl,
+                contentDescription = if (isAr) "صورة ${restaurant.nameAr}" else restaurant.nameEn,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(112.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .testTag("featured_restaurant_image_${restaurant.id}")
+            )
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -636,19 +647,30 @@ private fun RestaurantListItem(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DrovaSurfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Storefront,
-                            contentDescription = null,
-                            tint = DrovaPrimary,
-                            modifier = Modifier.size(24.dp)
+                    if (!restaurant.imageUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = restaurant.imageUrl,
+                            contentDescription = if (isAr) "صورة ${restaurant.nameAr}" else restaurant.nameEn,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .testTag("restaurant_list_image_${restaurant.id}")
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(DrovaSurfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storefront,
+                                contentDescription = null,
+                                tint = DrovaPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))

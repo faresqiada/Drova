@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.core.designsystem.*
 import com.example.domain.model.MenuItem
 import com.example.presentation.restaurant.RestaurantViewModel
@@ -67,7 +68,7 @@ fun RestaurantMenuTab(
                 },
                 text = {
                     Text(
-                        text = if (isAr) "إضافة صنف جديد" else "Add New Item",
+                        text = if (isAr) "إضافة صنف جديد" else "Add Something",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -240,6 +241,36 @@ private fun RestaurantMenuItemCard(
         border = BorderStroke(1.dp, if (item.isAvailable) DrovaBorder else DrovaError.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+            if (!item.imageUri.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.imageUri,
+                    contentDescription = if (isAr) "صورة ${item.nameAr}" else item.nameEn,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .testTag("menu_item_image_${item.id}")
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    color = DrovaSurfaceVariant
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Fastfood,
+                            contentDescription = if (isAr) "لا توجد صورة" else "No image",
+                            tint = DrovaTextSecondary.copy(alpha = 0.65f),
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

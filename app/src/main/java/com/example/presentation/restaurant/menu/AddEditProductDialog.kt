@@ -1,5 +1,7 @@
 package com.example.presentation.restaurant.menu
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import coil.compose.AsyncImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +44,10 @@ fun AddEditProductDialog(
     var priceText by remember { mutableStateOf(if (item != null) "${item.price}" else "") }
     var descriptionAr by remember { mutableStateOf(item?.descriptionAr.orEmpty()) }
     var prepTimeText by remember { mutableStateOf(if (item != null) "${item.preparationTimeMin}" else "15") }
+    var imageUri by remember { mutableStateOf(item?.imageUri) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        imageUri = uri?.toString()
+    }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -282,6 +289,43 @@ fun AddEditProductDialog(
                         }
                     }
 
+                    // Product image
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = if (isAr) "صورة المنتج" else "Product image",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DrovaTextPrimary
+                            )
+                        )
+                        if (!imageUri.isNullOrBlank()) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = if (isAr) "صورة المنتج" else "Product image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .testTag("product_image_preview")
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { imagePicker.launch("image/*") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("button_pick_product_image"),
+                            border = BorderStroke(1.dp, DrovaBorder)
+                        ) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isAr) "إضافة صورة من الهاتف" else "Add image from phone")
+                        }
+                        Text(
+                            text = if (isAr) "سيتم حفظ الصورة المختارة مع المنتج داخل جلسة التطبيق الحالية." else "The selected image is saved with this item for the current app session.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DrovaTextSecondary
+                        )
+                    }
+
                     // Description
                     Column {
                         Text(
@@ -370,7 +414,8 @@ fun AddEditProductDialog(
                                         category = selectedCategory,
                                         price = price,
                                         descriptionAr = descriptionAr.trim(),
-                                        prepTimeMin = prepTime
+                                        prepTimeMin = prepTime,
+                                        imageUri = imageUri
                                     )
                                     onDismiss()
                                 },

@@ -421,7 +421,8 @@ class RestaurantViewModel(
         category: String,
         price: Double,
         descriptionAr: String,
-        prepTimeMin: Int
+        prepTimeMin: Int,
+        imageUri: String? = null
     ) {
         val restId = restaurantData.value?.id ?: "rest_1"
         val existing = _editingProduct.value
@@ -433,7 +434,8 @@ class RestaurantViewModel(
                     category = category,
                     price = price,
                     descriptionAr = descriptionAr,
-                    preparationTimeMin = prepTimeMin
+                    preparationTimeMin = prepTimeMin,
+                    imageUri = imageUri
                 )
                 restaurantRepository.updateMenuItem(restId, updated)
                 triggerAlert(
@@ -454,7 +456,8 @@ class RestaurantViewModel(
                     price = price,
                     descriptionAr = descriptionAr,
                     preparationTimeMin = prepTimeMin,
-                    isAvailable = true
+                    isAvailable = true,
+                    imageUri = imageUri
                 )
                 restaurantRepository.addMenuItem(restId, newItem)
                 triggerAlert(
