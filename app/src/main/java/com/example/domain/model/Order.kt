@@ -120,6 +120,10 @@ data class Order(
     val estimatedArrivalMin: Int = 30,
     val estimatedDeliveryTimeFormatted: String = "",
     val specialInstructions: String = "",
+    /** Optional discriminator for flows that reuse the canonical order pipeline. */
+    val requestType: String = "",
+    /** Optional restaurant-selected delivery zone for restaurant-originated requests. */
+    val deliveryZone: String? = null,
     
     // Audit & Reasons
     val timeline: List<OrderTimelineEvent> = emptyList(),

@@ -150,14 +150,48 @@ class OrderRepositoryImpl(
         }
 
         val finalizedOrder = order.copy(timeline = initialTimeline)
+
+        // Restaurant delivery requests reuse the canonical order endpoint. They must not
+        // report success unless the current shared order channel accepts the write.
+        if (finalizedOrder.requestType == "RESTAURANT_DELIVERY") {
+            val remote = remoteDataSource
+                ?: return DrovaResult.Error(
+                    DrovaError.Network.Unknown("Order remote channel unavailable"),
+                    "تعذر إرسال طلب الكابتن لأن قناة الطلبات غير متاحة.",
+                    "Captain request could not be sent because the order channel is unavailable."
+                )
+            return when (val remoteResult = try {
+                remote.createOrder(CreateOrderRequestDto(finalizedOrder.toDto()))
+            } catch (error: Exception) {
+                DrovaResult.Error(
+                    DrovaError.Network.Unknown(error.message),
+                    "تعذر إرسال طلب الكابتن: ${error.message ?: "فشل الاتصال"}",
+                    "Captain request could not be sent: ${error.message ?: "connection failed"}",
+                    error
+                )
+            }) {
+                is DrovaResult.Success -> {
+                    localDataSource.saveOrder(finalizedOrder)
+                    DrovaResult.Success(finalizedOrder.id)
+                }
+                is DrovaResult.Error -> DrovaResult.Error(
+                    remoteResult.error,
+                    "تعذر إرسال طلب الكابتن عبر نظام الطلبات الحالي: ${remoteResult.messageAr}",
+                    "Captain request failed through the current order system: ${remoteResult.messageEn}",
+                    remoteResult.cause
+                )
+                DrovaResult.Loading -> DrovaResult.Loading
+            }
+        }
+
         localDataSource.saveOrder(finalizedOrder)
 
-        // Sync with remote if available (graceful fallback)
+        // Standard customer orders remain local-first with best-effort remote sync.
         remoteDataSource?.let { remote ->
             try {
                 remote.createOrder(CreateOrderRequestDto(finalizedOrder.toDto()))
-            } catch (e: Exception) {
-                // Remote sync is non-blocking in offline/local-first mode
+            } catch (_: Exception) {
+                // Remote sync is non-blocking for the existing customer order flow.
             }
         }
 

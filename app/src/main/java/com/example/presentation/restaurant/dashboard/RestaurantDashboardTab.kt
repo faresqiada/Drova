@@ -55,6 +55,9 @@ fun RestaurantDashboardTab(
     val selectedOrderDetail by restaurantViewModel.selectedOrderDetail.collectAsState()
 
     var orderToReject by remember { mutableStateOf<Order?>(null) }
+    var showDeliveryZoneDialog by remember { mutableStateOf(false) }
+    var selectedDeliveryZone by remember { mutableStateOf(DrovaDeliveryZones.first()) }
+    val deliveryRequestState by restaurantViewModel.deliveryRequestState.collectAsState()
 
     // Dialog for full order details
     if (selectedOrderDetail != null) {
@@ -224,7 +227,62 @@ fun RestaurantDashboardTab(
             }
         }
 
-        // 5. Orders Waiting for Confirmation & Preparation
+        // 5. Restaurant-to-Captain delivery request
+        item {
+            Card(
+                onClick = {
+                    restaurantViewModel.resetDeliveryRequestState()
+                    showDeliveryZoneDialog = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = DrovaCharcoal)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isAr) "اطلب دليفري" else "Request Delivery",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = if (isAr) "أرسل طلب كابتن لمنطقتك" else "Send a captain request for your zone",
+                            color = Color.White.copy(alpha = 0.78f),
+                            fontSize = 12.sp
+                        )
+                    }
+                    Icon(Icons.Default.TwoWheeler, contentDescription = null, tint = DrovaCyanAccent, modifier = Modifier.size(30.dp))
+                }
+            }
+        }
+
+        if (deliveryRequestState is DeliveryRequestState.Success) {
+            item {
+                val orderId = (deliveryRequestState as DeliveryRequestState.Success).orderId
+                Text(
+                    text = if (isAr) "تم إرسال طلب الكابتن — $orderId" else "Captain request sent — $orderId",
+                    color = DrovaTurquoise,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        if (deliveryRequestState is DeliveryRequestState.Error) {
+            item {
+                Text(
+                    text = (deliveryRequestState as DeliveryRequestState.Error).message,
+                    color = DrovaError,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // 6. Orders Waiting for Confirmation & Preparation
         if (pendingOrders.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -318,6 +376,40 @@ fun RestaurantDashboardTab(
         }
     }
 
+    if (showDeliveryZoneDialog) {
+        AlertDialog(
+            onDismissRequest = { if (deliveryRequestState !is DeliveryRequestState.Loading) showDeliveryZoneDialog = false },
+            title = { Text(if (isAr) "اختر منطقة التوصيل" else "Choose delivery zone") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    DrovaDeliveryZones.forEach { zone ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedDeliveryZone = zone },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedDeliveryZone == zone, onClick = { selectedDeliveryZone = zone })
+                            Text(zone, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = deliveryRequestState !is DeliveryRequestState.Loading,
+                    onClick = {
+                        showDeliveryZoneDialog = false
+                        restaurantViewModel.submitDeliveryRequest(selectedDeliveryZone)
+                    }
+                ) { Text(if (deliveryRequestState is DeliveryRequestState.Loading) "جارٍ الإرسال…" else "طلب كابتن") }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = deliveryRequestState !is DeliveryRequestState.Loading,
+                    onClick = { showDeliveryZoneDialog = false }
+                ) { Text("إلغاء") }
+            }
+        )
+    }
 }
 
 @Composable

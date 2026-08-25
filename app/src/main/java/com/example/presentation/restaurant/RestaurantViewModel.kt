@@ -3,6 +3,7 @@ package com.example.presentation.restaurant
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
+import com.example.core.result.DrovaResult
 import com.example.core.di.ServiceLocator
 import com.example.domain.model.*
 import com.example.domain.repository.AuthRepository
@@ -53,6 +54,19 @@ enum class AlertType {
     NEW_ORDER
 }
 
+sealed interface DeliveryRequestState {
+    data object Idle : DeliveryRequestState
+    data object Loading : DeliveryRequestState
+    data class Success(val orderId: String) : DeliveryRequestState
+    data class Error(val message: String) : DeliveryRequestState
+}
+
+val DrovaDeliveryZones = listOf(
+    "أحياء 6 أكتوبر",
+    "أحياء حدائق أكتوبر",
+    "أحياء الشيخ زايد"
+)
+
 data class SettlementRecord(
     val id: String,
     val referenceNumber: String,
@@ -87,8 +101,95 @@ class RestaurantViewModel(
     private val _selectedTab = MutableStateFlow(RestaurantMainTab.DASHBOARD)
     val selectedTab: StateFlow<RestaurantMainTab> = _selectedTab.asStateFlow()
 
+    private val _deliveryRequestState = MutableStateFlow<DeliveryRequestState>(DeliveryRequestState.Idle)
+    val deliveryRequestState: StateFlow<DeliveryRequestState> = _deliveryRequestState.asStateFlow()
+
     fun selectTab(tab: RestaurantMainTab) {
         _selectedTab.value = tab
+    }
+
+    fun resetDeliveryRequestState() {
+        _deliveryRequestState.value = DeliveryRequestState.Idle
+    }
+
+    private fun currentFormattedTime(): String {
+        return try {
+            val formatter = SimpleDateFormat("hh:mm a", Locale.getDefault())
+            "اليوم، " + formatter.format(Date())
+        } catch (_: Exception) {
+            "الآن"
+        }
+    }
+
+    fun submitDeliveryRequest(zone: String) {
+        val restaurant = restaurantData.value
+        if (restaurant == null || zone.isBlank()) {
+            _deliveryRequestState.value = DeliveryRequestState.Error("بيانات المطعم أو منطقة التوصيل غير متاحة.")
+            return
+        }
+        _deliveryRequestState.value = DeliveryRequestState.Loading
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val order = Order(
+                id = "restaurant_delivery_${now}_${UUID.randomUUID().toString().take(8)}",
+                orderNumber = "RD-${now.toString().takeLast(8)}",
+                customerId = "",
+                customerName = "طلب دليفري من المطعم",
+                customerPhone = "",
+                deliveryAddressAr = zone,
+                deliveryAddressEn = zone,
+                deliveryCoordinates = null,
+                restaurantId = restaurant.id,
+                restaurantNameAr = restaurant.nameAr,
+                restaurantNameEn = restaurant.nameEn,
+                restaurantAddressAr = restaurant.addressAr,
+                restaurantPhone = restaurant.phone,
+                restaurantCoordinates = null,
+                items = emptyList(),
+                subtotalEgp = 0.0,
+                deliveryFeeEgp = 0.0,
+                platformFeeEgp = 0.0,
+                totalEgp = 0.0,
+                status = OrderStatus.READY_FOR_PICKUP,
+                createdAtFormatted = currentFormattedTime(),
+                estimatedArrivalMin = 0,
+                specialInstructions = "RESTAURANT_DELIVERY|zone=$zone",
+                requestType = "RESTAURANT_DELIVERY",
+                deliveryZone = zone,
+                timeline = listOf(
+                    OrderTimelineEvent(
+                        status = OrderStatus.READY_FOR_PICKUP,
+                        timestampMillis = now,
+                        formattedTime = currentFormattedTime(),
+                        titleAr = "تم إنشاء طلب كابتن من المطعم",
+                        titleEn = "Restaurant delivery request created",
+                        noteAr = "الطلب جاهز للظهور في قائمة الطلبات المتاحة للكباتن",
+                        noteEn = "The request is ready for eligible captains.",
+                        actorRole = UserRole.RESTAURANT
+                    )
+                )
+            )
+            when (val result = orderRepository.createOrder(order)) {
+                is DrovaResult.Success -> {
+                    _deliveryRequestState.value = DeliveryRequestState.Success(result.data)
+                    triggerAlert(
+                        RestaurantAlert(
+                            titleAr = "تم إرسال طلب الكابتن",
+                            titleEn = "Captain request sent",
+                            messageAr = "تم إنشاء طلب دليفري حقيقي لمنطقة $zone",
+                            messageEn = "A real delivery request was created for $zone",
+                            type = AlertType.SUCCESS
+                        )
+                    )
+                }
+                is DrovaResult.Error -> {
+                    _deliveryRequestState.value = DeliveryRequestState.Error(result.messageAr)
+                }
+                DrovaResult.Loading -> {
+                    _deliveryRequestState.value = DeliveryRequestState.Loading
+                }
+            }
+        }
     }
 
     // ==========================================
