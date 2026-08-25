@@ -147,7 +147,55 @@ class AuthRepositoryImpl(
             )
         }
 
-        return completeVerifiedFirebaseUser(firebaseUser, autoProvisionCustomer = true)
+        return when (selectedRole.value) {
+            UserRole.CUSTOMER -> completeVerifiedFirebaseUser(firebaseUser, autoProvisionCustomer = true)
+            UserRole.ADMIN -> completeVerifiedFirebaseUser(firebaseUser)
+            UserRole.CAPTAIN, UserRole.RESTAURANT -> {
+                val existing = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(firebaseUser.uid)
+                    .get()
+                    .await()
+                val existingRole = existing.getString("role")?.trim()?.uppercase()
+                if (existing.exists() && existingRole == selectedRole.value.name) {
+                    completeVerifiedFirebaseUser(firebaseUser)
+                } else if (existing.exists() && existingRole in setOf("CAPTAIN", "RESTAURANT", "ADMIN")) {
+                    AuthResult.Error(
+                        messageAr = "هذا الحساب مرتبط بدور ${existingRole}. لا يمكن تغيير الدور من شاشة الدخول.",
+                        messageEn = "This account is already assigned to $existingRole. The role cannot be changed from sign-in."
+                    )
+                } else {
+                    createRoleRequest(firebaseUser, selectedRole.value)
+                }
+            }
+        }
+    }
+
+    private suspend fun createRoleRequest(firebaseUser: FirebaseUser, role: UserRole): AuthResult {
+        return try {
+            val requestId = "${firebaseUser.uid}_${role.name}"
+            FirebaseFirestore.getInstance().collection("role_requests").document(requestId).set(
+                mapOf(
+                    "requesterUid" to firebaseUser.uid,
+                    "requestedRole" to role.name,
+                    "status" to "PENDING",
+                    "email" to (firebaseUser.email ?: ""),
+                    "fullName" to (firebaseUser.displayName ?: ""),
+                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            ).await()
+            AuthResult.PendingApproval(
+                messageAr = "تم إرسال طلب ${role.titleAr} إلى الإدارة. سيتم فتح اللوحة بعد الموافقة.",
+                messageEn = "Your ${role.titleEn} request was sent to Admin. The dashboard opens after approval."
+            )
+        } catch (_: Exception) {
+            AuthResult.Error(
+                messageAr = "تعذر إرسال طلب الاعتماد. تحقق من اتصال Firebase.",
+                messageEn = "Could not submit the approval request. Check the Firebase connection."
+            )
+        }
     }
 
     override suspend fun completePhoneSignIn(firebaseUser: FirebaseUser): AuthResult {

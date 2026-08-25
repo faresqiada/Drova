@@ -177,9 +177,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /role_requests/{requestId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.requesterUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.requesterUid == request.auth.uid
+        && request.resource.data.requestedRole in ['CAPTAIN', 'RESTAURANT']
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.keys().hasOnly([
+          'requesterUid', 'requestedRole', 'status', 'email', 'fullName',
+          'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isAdmin()
+        && resource.data.status == 'PENDING'
+        && request.resource.data.status in ['APPROVED', 'REJECTED']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'approvedByAdminUid', 'approvedAt', 'rejectedByAdminUid',
+          'rejectedAt', 'rejectionReason', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow create: if signedIn()
+      allow create: if isAdmin()
+        || (signedIn()
         && request.auth.uid == userId
         && request.auth.token.firebase.sign_in_provider == 'google.com'
         && request.resource.data.role == 'CUSTOMER'
@@ -187,7 +210,7 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(['email'])
           || request.resource.data.email == request.auth.token.email)
         && (!request.resource.data.keys().hasAny(['full_name'])
-          || request.resource.data.full_name is string);
+          || request.resource.data.full_name is string));
       allow update: if isAdmin() || (signedIn() && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName', 'phone', 'photoUrl', 'updatedAt'

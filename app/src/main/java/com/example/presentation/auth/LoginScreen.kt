@@ -175,8 +175,18 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Error banner
-                AnimatedVisibility(visible = uiState is AuthUiState.Error) {
-                    val error = uiState as? AuthUiState.Error
+                AnimatedVisibility(visible = uiState is AuthUiState.Error || uiState is AuthUiState.PendingApproval) {
+                    val messageAr = when (val state = uiState) {
+                        is AuthUiState.Error -> state.messageAr
+                        is AuthUiState.PendingApproval -> state.messageAr
+                        else -> ""
+                    }
+                    val messageEn = when (val state = uiState) {
+                        is AuthUiState.Error -> state.messageEn
+                        is AuthUiState.PendingApproval -> state.messageEn
+                        else -> ""
+                    }
+                    val isPending = uiState is AuthUiState.PendingApproval
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -186,9 +196,9 @@ fun LoginScreen(
                         border = BorderStroke(1.dp, DrovaError.copy(alpha = 0.3f))
                     ) {
                         Text(
-                            text = if (isAr) error?.messageAr.orEmpty() else error?.messageEn.orEmpty(),
+                            text = if (isAr) messageAr else messageEn,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = DrovaErrorText,
+                                color = if (isPending) DrovaWarning else DrovaErrorText,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 12.sp
                             ),

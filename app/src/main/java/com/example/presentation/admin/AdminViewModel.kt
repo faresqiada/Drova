@@ -19,6 +19,7 @@ enum class AdminSection(val titleAr: String, val titleEn: String) {
     RESTAURANTS("المطاعم", "Restaurants"),
     CAPTAINS("الكباتن", "Captains"),
     ASSIGNMENTS("طلبات التعيين", "Assignment Requests"),
+    ROLE_REQUESTS("طلبات اعتماد الأدوار", "Role Approval Requests"),
     USERS("المستخدمون", "Users"),
     FINANCE("المالية", "Finance"),
     SETTINGS("الإعدادات", "Settings")
@@ -48,6 +49,7 @@ class AdminViewModel(
     val captains: StateFlow<List<AdminRecord>> = adminRepository.captains
     val users: StateFlow<List<AdminRecord>> = adminRepository.users
     val assignmentRequests: StateFlow<List<AdminRecord>> = adminRepository.assignmentRequests
+    val roleRequests: StateFlow<List<AdminRecord>> = adminRepository.roleRequests
     val lastError: StateFlow<String?> = adminRepository.lastError
 
     private val _selectedSection = MutableStateFlow(AdminSection.OVERVIEW)
@@ -66,6 +68,12 @@ class AdminViewModel(
         verifyAndStart()
         viewModelScope.launch {
             adminRepository.assignmentRequests.collect { records ->
+                val currentId = _selectedRecord.value?.id ?: return@collect
+                records.firstOrNull { it.id == currentId }?.let { _selectedRecord.value = it }
+            }
+        }
+        viewModelScope.launch {
+            adminRepository.roleRequests.collect { records ->
                 val currentId = _selectedRecord.value?.id ?: return@collect
                 records.firstOrNull { it.id == currentId }?.let { _selectedRecord.value = it }
             }
@@ -104,6 +112,18 @@ class AdminViewModel(
         runAssignmentOperation {
             val adminUid = authRepository.firebaseUid.value.orEmpty()
             adminRepository.rejectAssignmentRequest(requestId, reason, adminUid)
+        }
+    }
+
+    fun approveRoleRequest(requestId: String) {
+        runAssignmentOperation {
+            adminRepository.approveRoleRequest(requestId, authRepository.firebaseUid.value.orEmpty())
+        }
+    }
+
+    fun rejectRoleRequest(requestId: String, reason: String) {
+        runAssignmentOperation {
+            adminRepository.rejectRoleRequest(requestId, reason, authRepository.firebaseUid.value.orEmpty())
         }
     }
 

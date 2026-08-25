@@ -13,6 +13,7 @@ interface AdminRepository {
     val captains: StateFlow<List<AdminRecord>>
     val users: StateFlow<List<AdminRecord>>
     val assignmentRequests: StateFlow<List<AdminRecord>>
+    val roleRequests: StateFlow<List<AdminRecord>>
     val lastError: StateFlow<String?>
 
     fun startRealtime()
@@ -28,6 +29,8 @@ interface AdminRepository {
         reason: String,
         adminUid: String
     ): DrovaResult<Unit>
+    suspend fun approveRoleRequest(requestId: String, adminUid: String): DrovaResult<Unit>
+    suspend fun rejectRoleRequest(requestId: String, reason: String, adminUid: String): DrovaResult<Unit>
 }
 
 data class EligibleCaptain(

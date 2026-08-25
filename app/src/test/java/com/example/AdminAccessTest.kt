@@ -46,6 +46,7 @@ private class FakeAdminRepository : AdminRepository {
     override val captains: StateFlow<List<AdminRecord>> = empty
     override val users: StateFlow<List<AdminRecord>> = empty
     override val assignmentRequests: StateFlow<List<AdminRecord>> = empty
+    override val roleRequests: StateFlow<List<AdminRecord>> = empty
     override val lastError: StateFlow<String?> = MutableStateFlow(null)
     var started = false
 
@@ -54,6 +55,8 @@ private class FakeAdminRepository : AdminRepository {
     override suspend fun pickupProofDownloadUrl(storagePath: String): DrovaResult<String> = DrovaResult.Success(storagePath)
     override suspend fun approveAssignmentRequest(requestId: String, selectedCaptainIds: List<String>, adminUid: String): DrovaResult<Unit> = DrovaResult.Success(Unit)
     override suspend fun rejectAssignmentRequest(requestId: String, reason: String, adminUid: String): DrovaResult<Unit> = DrovaResult.Success(Unit)
+    override suspend fun approveRoleRequest(requestId: String, adminUid: String): DrovaResult<Unit> = DrovaResult.Success(Unit)
+    override suspend fun rejectRoleRequest(requestId: String, reason: String, adminUid: String): DrovaResult<Unit> = DrovaResult.Success(Unit)
 }
 
 private class FakeAuthRepository(private val admin: Boolean) : AuthRepository {

@@ -103,6 +103,8 @@ fun AdminDashboardScreen(
                     operationState = operationState,
                     onApproveAssignment = viewModel::approveAssignment,
                     onRejectAssignment = viewModel::rejectAssignment,
+                    onApproveRoleRequest = viewModel::approveRoleRequest,
+                    onRejectRoleRequest = viewModel::rejectRoleRequest,
                     onClearOperationState = viewModel::clearOperationState,
                     onBack = viewModel::closeRecord,
                     modifier = Modifier.padding(padding)
@@ -131,6 +133,8 @@ private fun AdminHome(
     val captains by viewModel.captains.collectAsState()
     val users by viewModel.users.collectAsState()
     val assignments by viewModel.assignmentRequests.collectAsState()
+    val roleRequests by viewModel.roleRequests.collectAsState()
+    val pendingRoleRequests = roleRequests.count { it.text("status")?.uppercase() == "PENDING" }
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
@@ -140,17 +144,30 @@ private fun AdminHome(
                 AssistChip(onClick = { viewModel.selectSection(item) }, label = { Text(item.titleAr) }, leadingIcon = null)
             }
         }
+        if (pendingRoleRequests > 0) {
+            Card(
+                onClick = { viewModel.selectSection(AdminSection.ROLE_REQUESTS) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("طلب اعتماد جديد", fontWeight = FontWeight.Bold, color = DrovaCharcoal)
+                    Text("لديك $pendingRoleRequests طلبًا معلقًا لمراجعته وقبوله أو رفضه.", color = DrovaCharcoal)
+                }
+            }
+        }
         if (error != null) {
             Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE8E8))) {
                 Text("تعذر تحديث بيانات ${section.titleAr}. $error", modifier = Modifier.padding(12.dp), color = Color(0xFF9B1C1C))
             }
         }
         when (section) {
-            AdminSection.OVERVIEW -> Overview(orders, restaurants, captains, users, assignments)
+            AdminSection.OVERVIEW -> Overview(orders, restaurants, captains, users, assignments, pendingRoleRequests)
             AdminSection.ORDERS -> RecordList("الطلبات الحقيقية", orders, viewModel::openRecord)
             AdminSection.RESTAURANTS -> RecordList("المطاعم الحقيقية", restaurants, viewModel::openRecord)
             AdminSection.CAPTAINS -> RecordList("الكباتن الحقيقيون", captains, viewModel::openRecord)
             AdminSection.ASSIGNMENTS -> RecordList("طلبات التعيين", assignments, viewModel::openRecord)
+            AdminSection.ROLE_REQUESTS -> RecordList("طلبات اعتماد الأدوار", roleRequests, viewModel::openRecord)
             AdminSection.USERS -> RecordList("المستخدمون", users, viewModel::openRecord)
             AdminSection.FINANCE -> UnavailableSection("المالية", "لا يوجد Admin Finance contract حقيقي متاح في المشروع الحالي.")
             AdminSection.SETTINGS -> UnavailableSection("الإعدادات", "لا يوجد Settings contract حقيقي متاح في المشروع الحالي.")
@@ -164,14 +181,15 @@ private fun Overview(
     restaurants: List<AdminRecord>,
     captains: List<AdminRecord>,
     users: List<AdminRecord>,
-    assignments: List<AdminRecord>
+    assignments: List<AdminRecord>,
+    pendingRoleRequests: Int
 ) {
     val active = orders.count { it.text("status") !in setOf("DELIVERED", "COMPLETED", "CANCELLED", "REJECTED") }
     val completed = orders.count { it.text("status") in setOf("DELIVERED", "COMPLETED") }
     val pendingAssignments = assignments.count { it.text("status")?.uppercase() == "PENDING" }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("ملخص البيانات الحقيقية", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        item { MetricGrid(listOf("إجمالي الطلبات" to orders.size.toString(), "النشطة" to active.toString(), "المكتملة" to completed.toString(), "المطاعم" to restaurants.size.toString(), "الكباتن" to captains.size.toString(), "المستخدمون" to users.size.toString(), "طلبات التعيين المعلقة" to pendingAssignments.toString(), "المالية" to "N/A")) }
+        item { MetricGrid(listOf("إجمالي الطلبات" to orders.size.toString(), "النشطة" to active.toString(), "المكتملة" to completed.toString(), "المطاعم" to restaurants.size.toString(), "الكباتن" to captains.size.toString(), "المستخدمون" to users.size.toString(), "طلبات التعيين المعلقة" to pendingAssignments.toString(), "طلبات اعتماد الأدوار" to pendingRoleRequests.toString(), "المالية" to "N/A")) }
     }
 }
 
@@ -224,6 +242,8 @@ private fun AdminRecordDetail(
     operationState: AdminOperationState,
     onApproveAssignment: (String, List<String>) -> Unit,
     onRejectAssignment: (String, String) -> Unit,
+    onApproveRoleRequest: (String) -> Unit,
+    onRejectRoleRequest: (String, String) -> Unit,
     onClearOperationState: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -231,6 +251,8 @@ private fun AdminRecordDetail(
     val isPendingAssignment = record.text("status")?.uppercase() == "PENDING" &&
         !record.text("restaurantId").isNullOrBlank() &&
         record.fields.containsKey("requestedCaptainCount")
+    val isPendingRoleRequest = record.text("status")?.uppercase() == "PENDING" &&
+        record.text("requestedRole")?.uppercase() in setOf("CAPTAIN", "RESTAURANT")
     var selectedCaptainIds by remember(record.id) { mutableStateOf<Set<String>>(emptySet()) }
     var rejectionReason by remember(record.id) { mutableStateOf("") }
     var showApproveDialog by remember(record.id) { mutableStateOf(false) }
@@ -259,6 +281,18 @@ private fun AdminRecordDetail(
                         },
                         onApprove = { showApproveDialog = true },
                         onReject = { showRejectDialog = true },
+                        onRetry = { retryAction?.invoke() },
+                        onClearOperationState = onClearOperationState
+                    )
+                }
+            }
+            if (isPendingRoleRequest) {
+                item {
+                    RoleRequestControls(
+                        record = record,
+                        operationState = operationState,
+                        onApprove = { onApproveRoleRequest(record.id) },
+                        onReject = { reason -> onRejectRoleRequest(record.id, reason) },
                         onRetry = { retryAction?.invoke() },
                         onClearOperationState = onClearOperationState
                     )
@@ -310,6 +344,80 @@ private fun AdminRecordDetail(
                     retryAction = { onRejectAssignment(record.id, rejectionReason) }
                     onRejectAssignment(record.id, rejectionReason)
                 }) { Text("رفض") }
+            },
+            dismissButton = { TextButton(onClick = { showRejectDialog = false }) { Text("إلغاء") } }
+        )
+    }
+}
+
+@Composable
+private fun RoleRequestControls(
+    record: AdminRecord,
+    operationState: AdminOperationState,
+    onApprove: () -> Unit,
+    onReject: (String) -> Unit,
+    onRetry: () -> Unit,
+    onClearOperationState: () -> Unit
+) {
+    var showApproveDialog by remember(record.id) { mutableStateOf(false) }
+    var showRejectDialog by remember(record.id) { mutableStateOf(false) }
+    var rejectionReason by remember(record.id) { mutableStateOf("") }
+    Card(colors = CardDefaults.cardColors(containerColor = DrovaSurface), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("طلب اعتماد جديد", fontWeight = FontWeight.Bold)
+            Text("الدور المطلوب: ${record.text("requestedRole") ?: "غير محدد"}", color = DrovaTurquoise)
+            Text("المتقدم: ${record.text("fullName") ?: "غير محدد"}")
+            Text("البريد: ${record.text("email") ?: "غير محدد"}", color = DrovaTextSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = operationState !is AdminOperationState.Loading, onClick = { showApproveDialog = true }) {
+                    Text("قبول")
+                }
+                TextButton(enabled = operationState !is AdminOperationState.Loading, onClick = { showRejectDialog = true }) {
+                    Text("رفض")
+                }
+            }
+            when (operationState) {
+                AdminOperationState.Idle -> Unit
+                AdminOperationState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp), color = DrovaTurquoise)
+                is AdminOperationState.Success -> {
+                    Text(operationState.message, color = DrovaTurquoise)
+                    TextButton(onClick = onClearOperationState) { Text("إخفاء") }
+                }
+                is AdminOperationState.Failure -> {
+                    Text(operationState.message, color = Color(0xFF9B1C1C))
+                    TextButton(onClick = onRetry) { Text("إعادة المحاولة") }
+                }
+            }
+        }
+    }
+    if (showApproveDialog) {
+        AlertDialog(
+            onDismissRequest = { showApproveDialog = false },
+            title = { Text("اعتماد الدور؟") },
+            text = { Text("سيتم منح الدور المطلوب للحساب بعد تنفيذ معاملة Firestore.") },
+            confirmButton = {
+                TextButton(onClick = { showApproveDialog = false; onApprove() }) { Text("قبول") }
+            },
+            dismissButton = { TextButton(onClick = { showApproveDialog = false }) { Text("إلغاء") } }
+        )
+    }
+    if (showRejectDialog) {
+        AlertDialog(
+            onDismissRequest = { showRejectDialog = false },
+            title = { Text("رفض طلب الاعتماد") },
+            text = {
+                OutlinedTextField(
+                    value = rejectionReason,
+                    onValueChange = { rejectionReason = it },
+                    label = { Text("سبب الرفض") },
+                    singleLine = false
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = rejectionReason.isNotBlank(),
+                    onClick = { showRejectDialog = false; onReject(rejectionReason.trim()) }
+                ) { Text("رفض") }
             },
             dismissButton = { TextButton(onClick = { showRejectDialog = false }) { Text("إلغاء") } }
         )

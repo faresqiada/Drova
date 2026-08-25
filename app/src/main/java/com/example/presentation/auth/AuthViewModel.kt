@@ -20,6 +20,7 @@ sealed interface AuthUiState {
     object Idle : AuthUiState
     object Loading : AuthUiState
     data class Success(val user: User) : AuthUiState
+    data class PendingApproval(val messageAr: String, val messageEn: String) : AuthUiState
     data class Error(val messageAr: String, val messageEn: String) : AuthUiState
 }
 
@@ -48,6 +49,7 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.signInWithGoogle(activity)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.PendingApproval -> _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }
         }
@@ -58,6 +60,7 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.completePhoneSignIn(firebaseUser)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.PendingApproval -> _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }
         }
@@ -69,6 +72,9 @@ class AuthViewModel(
             when (val result = authRepository.login(phoneOrEmail, pinOrPassword)) {
                 is AuthResult.Success -> {
                     _uiState.value = AuthUiState.Success(result.user)
+                }
+                is AuthResult.PendingApproval -> {
+                    _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 }
                 is AuthResult.Error -> {
                     _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
@@ -82,6 +88,7 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.registerCustomer(fullName, phone, city, district)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.PendingApproval -> _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }
         }
@@ -98,6 +105,7 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.registerRestaurant(businessName, managerName, phone, commercialRegister, address)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.PendingApproval -> _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }
         }
@@ -114,6 +122,7 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             when (val result = authRepository.registerCaptain(fullName, phone, nationalId, vehicleType, captainMode)) {
                 is AuthResult.Success -> _uiState.value = AuthUiState.Success(result.user)
+                is AuthResult.PendingApproval -> _uiState.value = AuthUiState.PendingApproval(result.messageAr, result.messageEn)
                 is AuthResult.Error -> _uiState.value = AuthUiState.Error(result.messageAr, result.messageEn)
             }
         }

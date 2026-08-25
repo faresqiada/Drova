@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 sealed class AuthResult {
     data class Success(val user: User) : AuthResult()
+    data class PendingApproval(val messageAr: String, val messageEn: String) : AuthResult()
     data class Error(val messageAr: String, val messageEn: String) : AuthResult()
 }
 

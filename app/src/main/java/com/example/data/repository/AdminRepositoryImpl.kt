@@ -24,6 +24,7 @@ class AdminRepositoryImpl(
     private val _captains = MutableStateFlow<List<AdminRecord>>(emptyList())
     private val _users = MutableStateFlow<List<AdminRecord>>(emptyList())
     private val _assignmentRequests = MutableStateFlow<List<AdminRecord>>(emptyList())
+    private val _roleRequests = MutableStateFlow<List<AdminRecord>>(emptyList())
     private val _lastError = MutableStateFlow<String?>(null)
     private val registrations = mutableListOf<ListenerRegistration>()
 
@@ -32,6 +33,7 @@ class AdminRepositoryImpl(
     override val captains: StateFlow<List<AdminRecord>> = _captains.asStateFlow()
     override val users: StateFlow<List<AdminRecord>> = _users.asStateFlow()
     override val assignmentRequests: StateFlow<List<AdminRecord>> = _assignmentRequests.asStateFlow()
+    override val roleRequests: StateFlow<List<AdminRecord>> = _roleRequests.asStateFlow()
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
     @Synchronized
@@ -42,6 +44,7 @@ class AdminRepositoryImpl(
         watch("captains") { _captains.value = it }
         watch("users") { _users.value = it }
         watch("captain_assignment_requests") { _assignmentRequests.value = it }
+        watch("role_requests") { _roleRequests.value = it }
     }
 
     @Synchronized
@@ -173,6 +176,86 @@ class AdminRepositoryImpl(
             assignmentError("فشل رفض طلب التعيين دون تغيير جزئي.", "Assignment rejection failed without partial changes.", error)
         }
     }
+
+    override suspend fun approveRoleRequest(requestId: String, adminUid: String): DrovaResult<Unit> {
+        if (requestId.isBlank() || adminUid.isBlank()) {
+            return roleRequestError("بيانات اعتماد الطلب غير مكتملة.", "Role request approval data is incomplete.")
+        }
+        return try {
+            firestore.runTransaction { transaction ->
+                val requestReference = firestore.collection("role_requests").document(requestId)
+                val requestSnapshot = transaction.get(requestReference)
+                if (!requestSnapshot.exists() || requestSnapshot.getString("status")?.uppercase() != "PENDING") {
+                    throw RoleRequestTransactionException("طلب الاعتماد غير موجود أو تمت معالجته.", "The role request is missing or already processed.")
+                }
+                val requestedRole = requestSnapshot.getString("requestedRole")?.uppercase()
+                if (requestedRole !in setOf("CAPTAIN", "RESTAURANT")) {
+                    throw RoleRequestTransactionException("الدور المطلوب غير صالح.", "The requested role is invalid.")
+                }
+                val userId = requestSnapshot.getString("requesterUid")
+                    ?: throw RoleRequestTransactionException("معرّف المستخدم غير موجود.", "The requester UID is missing.")
+                val userReference = firestore.collection("users").document(userId)
+                transaction.set(userReference, mapOf(
+                    "role" to requestedRole,
+                    "email" to (requestSnapshot.getString("email") ?: ""),
+                    "full_name" to (requestSnapshot.getString("fullName") ?: ""),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ), com.google.firebase.firestore.SetOptions.merge())
+                transaction.update(requestReference, mapOf(
+                    "status" to "APPROVED",
+                    "approvedByAdminUid" to adminUid,
+                    "approvedAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                null
+            }.await()
+            DrovaResult.Success(Unit)
+        } catch (error: RoleRequestTransactionException) {
+            roleRequestError(error.messageAr, error.messageEn)
+        } catch (error: FirebaseFirestoreException) {
+            roleRequestError("رفض Firebase العملية أو تعذر الاتصال به.", "Firebase rejected the operation or could not be reached.", error)
+        } catch (error: Exception) {
+            roleRequestError("فشل اعتماد الطلب دون تغيير جزئي.", "Role request approval failed without partial changes.", error)
+        }
+    }
+
+    override suspend fun rejectRoleRequest(requestId: String, reason: String, adminUid: String): DrovaResult<Unit> {
+        if (requestId.isBlank() || adminUid.isBlank() || reason.trim().isBlank()) {
+            return roleRequestError("سبب الرفض مطلوب.", "A rejection reason is required.")
+        }
+        return try {
+            firestore.runTransaction { transaction ->
+                val requestReference = firestore.collection("role_requests").document(requestId)
+                val requestSnapshot = transaction.get(requestReference)
+                if (!requestSnapshot.exists() || requestSnapshot.getString("status")?.uppercase() != "PENDING") {
+                    throw RoleRequestTransactionException("طلب الاعتماد غير موجود أو تمت معالجته.", "The role request is missing or already processed.")
+                }
+                transaction.update(requestReference, mapOf(
+                    "status" to "REJECTED",
+                    "rejectedByAdminUid" to adminUid,
+                    "rejectedAt" to FieldValue.serverTimestamp(),
+                    "rejectionReason" to reason.trim(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                null
+            }.await()
+            DrovaResult.Success(Unit)
+        } catch (error: RoleRequestTransactionException) {
+            roleRequestError(error.messageAr, error.messageEn)
+        } catch (error: FirebaseFirestoreException) {
+            roleRequestError("رفض Firebase العملية أو تعذر الاتصال به.", "Firebase rejected the operation or could not be reached.", error)
+        } catch (error: Exception) {
+            roleRequestError("فشل رفض الطلب دون تغيير جزئي.", "Role request rejection failed without partial changes.", error)
+        }
+    }
+
+    private fun roleRequestError(messageAr: String, messageEn: String, cause: Throwable? = null): DrovaResult.Error =
+        DrovaResult.Error(DrovaError.Domain.ValidationFailed("role_request", messageEn), messageAr, messageEn, cause)
+
+    private class RoleRequestTransactionException(
+        val messageAr: String,
+        val messageEn: String
+    ) : IllegalStateException()
 
     private fun assignmentError(messageAr: String, messageEn: String, cause: Throwable? = null): DrovaResult.Error =
         DrovaResult.Error(DrovaError.Domain.ValidationFailed("assignment", messageEn), messageAr, messageEn, cause)
