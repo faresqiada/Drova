@@ -4,6 +4,7 @@ import android.app.Activity
 import com.example.core.result.DrovaResult
 import com.example.data.auth.FirebaseGoogleSignInManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.data.auth.GoogleSignInException
@@ -143,6 +144,42 @@ class AuthRepositoryImpl(
         return completeVerifiedFirebaseUser(firebaseUser)
     }
 
+    private fun firebaseEmailLoginError(error: Exception): AuthResult.Error {
+        val code = (error as? FirebaseAuthException)?.errorCode.orEmpty()
+        return when (code) {
+            "ERROR_INVALID_EMAIL" -> AuthResult.Error(
+                messageAr = "صيغة البريد الإلكتروني غير صحيحة.",
+                messageEn = "The email address format is invalid."
+            )
+            "ERROR_USER_NOT_FOUND", "ERROR_WRONG_PASSWORD", "ERROR_INVALID_CREDENTIAL" -> AuthResult.Error(
+                messageAr = "البريد الإلكتروني أو كلمة المرور غير صحيحة في Firebase.",
+                messageEn = "The Firebase email or password is incorrect."
+            )
+            "ERROR_USER_DISABLED" -> AuthResult.Error(
+                messageAr = "حساب Firebase هذا معطل.",
+                messageEn = "This Firebase account is disabled."
+            )
+            "ERROR_NETWORK_REQUEST_FAILED" -> AuthResult.Error(
+                messageAr = "تعذر الاتصال بـ Firebase. تحقق من الإنترنت وحاول مرة أخرى.",
+                messageEn = "Could not reach Firebase. Check the internet connection and try again."
+            )
+            "ERROR_TOO_MANY_REQUESTS" -> AuthResult.Error(
+                messageAr = "تم إيقاف المحاولات مؤقتًا بسبب كثرة المحاولات. حاول لاحقًا.",
+                messageEn = "Too many attempts. Please try again later."
+            )
+            else -> AuthResult.Error(
+                messageAr = if (code.isBlank())
+                    "فشل تسجيل الدخول عبر Firebase. تحقق من بيانات الحساب وحاول مرة أخرى."
+                else
+                    "فشل تسجيل الدخول عبر Firebase ($code).",
+                messageEn = if (code.isBlank())
+                    "Firebase sign-in failed. Verify the account credentials and try again."
+                else
+                    "Firebase sign-in failed ($code)."
+            )
+        }
+    }
+
     override suspend fun login(phoneOrEmail: String, pinOrPassword: String): AuthResult {
         val trimmed = phoneOrEmail.trim()
         if (trimmed.isEmpty()) {
@@ -170,8 +207,10 @@ class AuthRepositoryImpl(
                         messageEn = "Firebase account was not found."
                     )
                 return completeVerifiedFirebaseUser(firebaseUser)
-            } catch (_: Exception) {
-                // A legacy server account may still authenticate through the old API below.
+            } catch (error: Exception) {
+                // Do not fall through to the legacy server for email accounts. That would
+                // hide the real Firebase error and could produce a misleading login result.
+                return firebaseEmailLoginError(error)
             }
         }
 
