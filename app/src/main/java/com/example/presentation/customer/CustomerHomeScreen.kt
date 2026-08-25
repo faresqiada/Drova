@@ -38,6 +38,7 @@ fun CustomerHomeScreen(
     customerViewModel: CustomerViewModel,
     onRoleSwitch: (UserRole) -> Unit,
     onContactUs: () -> Unit,
+    onFeedback: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -120,6 +121,7 @@ fun CustomerHomeScreen(
                                 viewModel = customerViewModel,
                                 onSwitchRole = onRoleSwitch,
                                 onContactUs = onContactUs,
+                                onFeedback = onFeedback,
                                 onLogout = onLogout,
                                 modifier = Modifier.fillMaxSize()
                             )

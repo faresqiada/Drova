@@ -27,6 +27,7 @@ import com.example.domain.model.DeliveryTask
 import com.example.domain.model.OrderStatus
 import com.example.domain.model.PaymentMethod
 import com.example.presentation.captain.CaptainMainTab
+import com.example.presentation.captain.CaptainOrderOfferPolicy
 import com.example.presentation.captain.CaptainViewModel
 import com.example.ui.theme.*
 
@@ -42,6 +43,9 @@ fun CaptainHomeTab(
     val earnings by captainViewModel.earnings.collectAsState()
     val availableTasks by captainViewModel.availableTasks.collectAsState()
     val activeTask by captainViewModel.activeTask.collectAsState()
+    val inYourWayTask = CaptainOrderOfferPolicy.findOrderInYourWay(activeTask, availableTasks)
+    var ignoredInYourWayOrderId by remember { mutableStateOf<String?>(null) }
+    var showInYourWayDetails by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier
@@ -361,7 +365,64 @@ fun CaptainHomeTab(
             }
         }
 
-        // 4. Incoming Delivery Requests Section Header
+        // 4. Non-blocking "Order in your way" notification.
+        if (activeTask != null && inYourWayTask != null && ignoredInYourWayOrderId != inYourWayTask.orderId) {
+            item {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("captain_order_in_your_way_banner"),
+                    shape = RoundedCornerShape(14.dp),
+                    color = DrovaWarningContainer,
+                    border = BorderStroke(1.5.dp, DrovaWarning)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.NearMe, contentDescription = null, tint = DrovaWarningText)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isAr) "طلب في سكتك" else "Order in your way",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = DrovaWarningText
+                            )
+                        }
+                        Text(
+                            text = if (isAr)
+                                "يوجد طلب مناسب بالقرب من مسارك الحالي. الطلب الحالي مستمر ولن يتم تغييره."
+                            else
+                                "A suitable order is near your current route. Your active order remains unchanged.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DrovaTextPrimary
+                        )
+                        Text(
+                            text = "${inYourWayTask.restaurantNameAr} → ${inYourWayTask.customerAddressAr} • +${inYourWayTask.estimatedEarningsEgp} ج.م",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = DrovaTextPrimary,
+                            maxLines = 2
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { ignoredInYourWayOrderId = inYourWayTask.orderId },
+                                modifier = Modifier.weight(1f).testTag("captain_order_in_your_way_ignore"),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(if (isAr) "تجاهل" else "Ignore")
+                            }
+                            Button(
+                                onClick = { showInYourWayDetails = true },
+                                modifier = Modifier.weight(1f).testTag("captain_order_in_your_way_details"),
+                                colors = ButtonDefaults.buttonColors(containerColor = DrovaWarning),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(if (isAr) "التفاصيل" else "Details", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Incoming Delivery Requests Section Header
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -488,6 +549,29 @@ fun CaptainHomeTab(
                 )
             }
         }
+    }
+
+    if (showInYourWayDetails && inYourWayTask != null) {
+        AlertDialog(
+            onDismissRequest = { showInYourWayDetails = false },
+            title = { Text(if (isAr) "تفاصيل طلب في سكتك" else "Order in your way details") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${inYourWayTask.restaurantNameAr} → ${inYourWayTask.customerAddressAr}")
+                    Text(inYourWayTask.itemsSummary)
+                    Text("+${inYourWayTask.estimatedEarningsEgp} ج.م • ${inYourWayTask.estimatedTimeMin} دقيقة")
+                    Text(
+                        if (isAr) "يمكنك قبول الطلب من القائمة لاحقًا. لن يتغير الطلب الحالي تلقائيًا."
+                        else "You can accept it from the list later. The active order will never change automatically."
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showInYourWayDetails = false }) {
+                    Text(if (isAr) "إغلاق" else "Close")
+                }
+            }
+        )
     }
 }
 

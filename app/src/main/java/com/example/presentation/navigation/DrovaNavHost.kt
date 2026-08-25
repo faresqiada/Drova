@@ -23,6 +23,7 @@ import com.example.presentation.captain.CaptainDashboardScreen
 import com.example.presentation.captain.CaptainViewModel
 import com.example.presentation.customer.CustomerHomeScreen
 import com.example.presentation.customer.CustomerViewModel
+import com.example.presentation.customer.feedback.CustomerFeedbackScreen
 import com.example.presentation.restaurant.RestaurantDashboardScreen
 import com.example.presentation.restaurant.RestaurantViewModel
 import com.example.presentation.support.ContactUsScreen
@@ -86,12 +87,7 @@ fun DrovaNavHost(
             LoginScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = { role ->
-                    val destination = when (role) {
-                        UserRole.CUSTOMER -> Screen.CustomerHome.route
-                        UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
-                        UserRole.CAPTAIN -> Screen.CaptainDashboard.route
-                        UserRole.ADMIN -> Screen.AdminDashboard.route
-                    }
+                    val destination = RoleDestination.routeFor(role)
                     navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
@@ -115,12 +111,7 @@ fun DrovaNavHost(
             PhoneOtpScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = { role ->
-                    val destination = when (role) {
-                        UserRole.CUSTOMER -> Screen.CustomerHome.route
-                        UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
-                        UserRole.CAPTAIN -> Screen.CaptainDashboard.route
-                        UserRole.ADMIN -> Screen.AdminDashboard.route
-                    }
+                    val destination = RoleDestination.routeFor(role)
                     navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
@@ -133,16 +124,15 @@ fun DrovaNavHost(
             ContactUsScreen(onBackClick = { navController.popBackStack() })
         }
 
+        composable(Screen.CustomerFeedback.route) {
+            CustomerFeedbackScreen(onBackClick = { navController.popBackStack() })
+        }
+
         composable(Screen.Register.route) {
             RegisterScreen(
                 authViewModel = authViewModel,
                 onRegisterSuccess = { role ->
-                    val destination = when (role) {
-                        UserRole.CUSTOMER -> Screen.CustomerHome.route
-                        UserRole.RESTAURANT -> Screen.RestaurantDashboard.route
-                        UserRole.CAPTAIN -> Screen.CaptainDashboard.route
-                        UserRole.ADMIN -> Screen.AdminDashboard.route
-                    }
+                    val destination = RoleDestination.routeFor(role)
                     navController.navigate(destination) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
@@ -164,6 +154,7 @@ fun DrovaNavHost(
                 customerViewModel = customerViewModel,
                 onRoleSwitch = { /* Role changes require a verified re-authenticated session. */ },
                 onContactUs = { navController.navigate(Screen.ContactUs.route) },
+                onFeedback = { navController.navigate(Screen.CustomerFeedback.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Welcome.route) {

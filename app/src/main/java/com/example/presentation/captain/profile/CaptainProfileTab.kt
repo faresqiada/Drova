@@ -372,58 +372,6 @@ fun CaptainProfileTab(
             }
         }
 
-        // 5. Role Switcher for Reviewer
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = DrovaSurfaceVariant
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = if (isAr) "التبديل بين وحدات نظام DROVA" else "Switch Platform Roles:",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DrovaTextSecondary
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { onRoleSwitch(UserRole.CUSTOMER) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("btn_switch_customer_from_profile"),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = DrovaTurquoise)
-                        ) {
-                            Text(
-                                text = if (isAr) "تطبيق العميل" else "Customer",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-
-                        Button(
-                            onClick = { onRoleSwitch(UserRole.RESTAURANT) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("btn_switch_restaurant_from_profile"),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = DrovaCharcoal)
-                        ) {
-                            Text(
-                                text = if (isAr) "لوحة المطعم" else "Restaurant",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         // 6. Logout Button
         item {
             OutlinedButton(

@@ -32,6 +32,7 @@ fun CustomerProfileScreen(
     viewModel: CustomerViewModel,
     onSwitchRole: (UserRole) -> Unit,
     onContactUs: () -> Unit,
+    onFeedback: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -266,6 +267,34 @@ fun CustomerProfileScreen(
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(color = DrovaBorder, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Ratings & Complaints Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onFeedback)
+                            .padding(vertical = 8.dp)
+                            .testTag("profile_feedback_btn"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.StarRate,
+                            contentDescription = null,
+                            tint = DrovaWarning,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAr) "التقييمات والشكاوى" else "Ratings & Complaints",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = DrovaTextPrimary
+                            )
+                        )
+                    }
+
                     HorizontalDivider(color = DrovaBorder, thickness = 0.5.dp)
                     Spacer(modifier = Modifier.height(6.dp))
 

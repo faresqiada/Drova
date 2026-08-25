@@ -46,16 +46,12 @@ class AuthRepositoryImpl(
         return
     }
 
-    override suspend fun signInWithGoogle(activity: Activity): AuthResult {
-        val result = googleSignInManager.signIn(activity)
-        val firebaseUser = result.getOrElse { error ->
-            val signInError = error as? GoogleSignInException
-            return AuthResult.Error(
-                messageAr = signInError?.messageAr ?: "فشل تسجيل الدخول عبر Google. حاول مرة أخرى.",
-                messageEn = signInError?.messageEn ?: "Google Sign-In failed. Please try again."
-            )
-        }
-
+    /**
+     * Resolve the post-authentication role from the authenticated legacy API first.
+     * Firebase claims remain the secure fallback when the legacy profile endpoint is unavailable.
+     * The selected role in the pre-login UI is never trusted as an authorization source.
+     */
+    private suspend fun completeVerifiedFirebaseUser(firebaseUser: FirebaseUser): AuthResult {
         return try {
             val tokenResult = firebaseUser.getIdToken(false).await()
                 ?: return AuthResult.Error(
@@ -67,6 +63,29 @@ class AuthRepositoryImpl(
                     messageAr = "تعذر الحصول على رمز Firebase صالح.",
                     messageEn = "Could not obtain a valid Firebase token."
                 )
+
+            sessionManager.setFirebaseUid(firebaseUser.uid)
+            sessionManager.setAuthToken(idToken)
+
+            // The old API is the source of truth for restaurant/captain/customer profiles
+            // when it accepts the Firebase bearer token. Never synthesize an elevated role.
+            remoteDataSource?.let { remote ->
+                when (val profileResult = remote.getCurrentUserProfile()) {
+                    is DrovaResult.Success -> {
+                        val profileUser = profileResult.data.toDomain()
+                        if (profileUser.role == UserRole.ADMIN && !hasAdminClaim()) {
+                            return AuthResult.Error(
+                                messageAr = "لا يمكن فتح جلسة Admin بدون Firebase custom claim.",
+                                messageEn = "An Admin session requires a verified Firebase custom claim."
+                            )
+                        }
+                        sessionManager.setCurrentUser(profileUser)
+                        return AuthResult.Success(profileUser)
+                    }
+                    is DrovaResult.Error, DrovaResult.Loading -> Unit
+                }
+            }
+
             val isAdminClaim = tokenResult.claims["admin"] == true
             val claimedRole = if (isAdminClaim) {
                 UserRole.ADMIN
@@ -75,7 +94,6 @@ class AuthRepositoryImpl(
                     ?.uppercase(Locale.ROOT)
                     ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
             }
-            // Verified Firebase users default to customer access; elevated roles require claims.
             val role = claimedRole ?: UserRole.CUSTOMER
             val user = User(
                 id = firebaseUser.uid,
@@ -88,11 +106,9 @@ class AuthRepositoryImpl(
                 city = "القاهرة",
                 district = "المعادي"
             )
-            sessionManager.setFirebaseUid(firebaseUser.uid)
-            sessionManager.setAuthToken(idToken)
             sessionManager.setCurrentUser(user)
             AuthResult.Success(user)
-        } catch (error: Exception) {
+        } catch (_: Exception) {
             AuthResult.Error(
                 messageAr = "تعذر إكمال جلسة Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
                 messageEn = "Could not complete the Firebase session. Check your internet connection and try again."
@@ -100,47 +116,21 @@ class AuthRepositoryImpl(
         }
     }
 
-    override suspend fun completePhoneSignIn(firebaseUser: FirebaseUser): AuthResult {
-        return try {
-            val tokenResult = firebaseUser.getIdToken(false).await()
-                ?: return AuthResult.Error(
-                    messageAr = "تعذر الحصول على جلسة Firebase صالحة.",
-                    messageEn = "Could not obtain a valid Firebase session."
-                )
-            val idToken = tokenResult.token
-                ?: return AuthResult.Error(
-                    messageAr = "تعذر الحصول على رمز Firebase صالح.",
-                    messageEn = "Could not obtain a valid Firebase token."
-                )
-            val isAdminClaim = tokenResult.claims["admin"] == true
-            val claimedRole = if (isAdminClaim) {
-                UserRole.ADMIN
-            } else {
-                (tokenResult.claims["role"] as? String)
-                    ?.uppercase(Locale.ROOT)
-                    ?.let { value -> UserRole.values().firstOrNull { it != UserRole.ADMIN && it.name == value } }
-            }
-            // Verified Firebase users default to customer access; elevated roles require claims.
-            val role = claimedRole ?: UserRole.CUSTOMER
-            val user = User(
-                id = firebaseUser.uid,
-                fullName = firebaseUser.displayName?.takeIf { it.isNotBlank() } ?: "DROVA User",
-                phone = firebaseUser.phoneNumber.orEmpty(),
-                email = firebaseUser.email.orEmpty(),
-                role = role,
-                city = "القاهرة",
-                district = "المعادي"
-            )
-            sessionManager.setFirebaseUid(firebaseUser.uid)
-            sessionManager.setAuthToken(idToken)
-            sessionManager.setCurrentUser(user)
-            AuthResult.Success(user)
-        } catch (_: Exception) {
-            AuthResult.Error(
-                messageAr = "تعذر إكمال تسجيل الدخول برقم الهاتف.",
-                messageEn = "Could not complete phone sign-in."
+    override suspend fun signInWithGoogle(activity: Activity): AuthResult {
+        val result = googleSignInManager.signIn(activity)
+        val firebaseUser = result.getOrElse { error ->
+            val signInError = error as? GoogleSignInException
+            return AuthResult.Error(
+                messageAr = signInError?.messageAr ?: "فشل تسجيل الدخول عبر Google. حاول مرة أخرى.",
+                messageEn = signInError?.messageEn ?: "Google Sign-In failed. Please try again."
             )
         }
+
+        return completeVerifiedFirebaseUser(firebaseUser)
+    }
+
+    override suspend fun completePhoneSignIn(firebaseUser: FirebaseUser): AuthResult {
+        return completeVerifiedFirebaseUser(firebaseUser)
     }
 
     override suspend fun login(phoneOrEmail: String, pinOrPassword: String): AuthResult {
